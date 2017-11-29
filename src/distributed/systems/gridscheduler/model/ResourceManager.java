@@ -1,5 +1,6 @@
 package distributed.systems.gridscheduler.model;
 
+import java.io.Serializable;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -24,7 +25,7 @@ import distributed.systems.example.LocalSocket;
  * @author Niels Brouwers, Boaz Pat-El
  *
  */
-public class ResourceManager implements INodeEventHandler, IMessageReceivedHandler {
+public class ResourceManager implements INodeEventHandler, IMessageReceivedHandler, Serializable {
 	private Cluster cluster;
 	private Queue<Job> jobQueue;
 	private String socketURL;
@@ -66,6 +67,9 @@ public class ResourceManager implements INodeEventHandler, IMessageReceivedHandl
 
 		socket.addMessageReceivedHandler(this);
 	}
+
+
+
 
 	/**
 	 * Add a job to the resource manager. If there is a free node in the cluster the job will be
@@ -154,7 +158,7 @@ public class ResourceManager implements INodeEventHandler, IMessageReceivedHandl
 	 * pre: the parameter 'gridSchedulerURL' must not be null
 	 * @param gridSchedulerURL
 	 */
-	public void connectToGridScheduler(String gridSchedulerURL) {
+	public void/**/ connectToGridScheduler(String gridSchedulerURL) {
 
 		// preconditions
 		assert(gridSchedulerURL != null) : "the parameter 'gridSchedulerURL' cannot be null"; 

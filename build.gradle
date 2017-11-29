@@ -1,0 +1,41 @@
+group 'DS'
+version '1.0'
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'application'
+
+sourceCompatibility = 1.8
+
+sourceSets.main.java.srcDirs = ['src']
+
+
+repositories {
+    mavenCentral()
+}
+
+
+jar {
+    baseName = "ds-gradle"
+    version = "1.0"
+}
+
+
+
+task gs(type: JavaExec) {
+    main = 'distributed.systems.gridscheduler.RemoteGridSchedulerImpl'
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("argv") ) {
+        args = Eval.me(argv)
+    }
+}
+
+task rm(type: JavaExec) {
+    main = 'distributed.systems.gridscheduler.RemoteResourceManagerImpl'
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("argv") ) {
+        args = Eval.me(argv)
+    }
+}
