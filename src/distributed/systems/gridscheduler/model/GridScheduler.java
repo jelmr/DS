@@ -22,8 +22,8 @@ public class GridScheduler implements IMessageReceivedHandler, Runnable {
 	// job queue
 	private ConcurrentLinkedQueue<Job> jobQueue;
 	
-	// local url
-	private final String url;
+	// local name
+	private final String name;
 
 	// communications socket
 	private Socket socket;
@@ -39,20 +39,20 @@ public class GridScheduler implements IMessageReceivedHandler, Runnable {
 	private boolean running;
 	
 	/**
-	 * Constructs a new GridScheduler object at a given url.
+	 * Constructs a new GridScheduler object at a given name.
 	 * <p>
 	 * <DL>
 	 * <DT><B>Preconditions:</B>
-	 * <DD>parameter <CODE>url</CODE> cannot be null
+	 * <DD>parameter <CODE>name</CODE> cannot be null
 	 * </DL>
-	 * @param url the gridscheduler's url to register at
+	 * @param name the gridscheduler's name to register at
 	 */
-	public GridScheduler(String url) {
+	public GridScheduler(String name) {
 		// preconditions
-		assert(url != null) : "parameter 'url' cannot be null";
+		assert(name != null) : "parameter 'name' cannot be null";
 		
 		// init members
-		this.url = url;
+		this.name = name;
 		this.resourceManagerLoad = new ConcurrentHashMap<String, Integer>();
 		this.jobQueue = new ConcurrentLinkedQueue<Job>();
 		
@@ -63,7 +63,7 @@ public class GridScheduler implements IMessageReceivedHandler, Runnable {
 		
 		// register the socket under the name of the gridscheduler.
 		// In this way, messages can be sent between components by name.
-		socket.register(url);
+		socket.register(name);
 
 		// start the polling thread
 		running = true;
@@ -76,8 +76,8 @@ public class GridScheduler implements IMessageReceivedHandler, Runnable {
 	 * It is passed to the constructor and cannot be changed afterwards.
 	 * @return the name of the gridscheduler
 	 */
-	public String getUrl() {
-		return url;
+	public String getName() {
+		return name;
 	}
 
 	/**
@@ -124,7 +124,7 @@ public class GridScheduler implements IMessageReceivedHandler, Runnable {
 		
 	}
 
-	// finds the least loaded resource manager and returns its url
+	// finds the least loaded resource manager and returns its name
 	private String getLeastLoadedRM() {
 		String ret = null; 
 		int minLoad = Integer.MAX_VALUE;
@@ -152,7 +152,7 @@ public class GridScheduler implements IMessageReceivedHandler, Runnable {
 			for (String rmUrl : resourceManagerLoad.keySet())
 			{
 				ControlMessage cMessage = new ControlMessage(ControlMessageType.RequestLoad);
-				cMessage.setUrl(this.getUrl());
+				cMessage.setUrl(this.getName());
 				socket.sendMessage(cMessage, "localsocket://" + rmUrl);
 			}
 			

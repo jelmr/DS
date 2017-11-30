@@ -19,7 +19,9 @@ public interface RemoteGridScheduler extends Remote {
 
 	boolean scheduleJob(Job job, RemoteResourceManager source) throws RemoteException;
 
-	boolean logEvent(Event e, LamportsClock timestamp) throws RemoteException;
+	boolean logEvent(Event e) throws RemoteException;
+
+	String getName() throws RemoteException;
 
 
 }

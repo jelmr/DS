@@ -114,4 +114,9 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 	}
 
 
+	@Override
+	public String getName() throws RemoteException {
+		return this.rm.getName();
+	}
+
 }

@@ -45,7 +45,7 @@ public class Simulation implements Runnable {
 		// Create the clusters and nods
 		clusters = new Cluster[nrClusters];
 		for (int i = 0; i < nrClusters; i++) {
-			//clusters[i] = new Cluster("cluster" + i, scheduler.getUrl(), nrNodes);
+			//clusters[i] = new Cluster("cluster" + i, scheduler.getName(), nrNodes);
 			
 			// Now create a cluster status panel for each cluster inside this gridscheduler
 			//ClusterStatusPanel clusterReporter = new ClusterStatusPanel(clusters[i]);

@@ -47,7 +47,7 @@ public class GridSchedulerStatusPanel extends StatusPanel {
 	    int y = padding + fontHeight;
 	    
 	    g.drawString("Scheduler name ", x, y);
-	    g.drawString("" + scheduler.getUrl(), x + colWidth, y);
+	    g.drawString("" + scheduler.getName(), x + colWidth, y);
 	    y += fontHeight;
 	    
 	    g.drawString("Jobs waiting ", x, y);

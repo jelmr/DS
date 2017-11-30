@@ -85,7 +85,7 @@ public class Logger implements Runnable{
 		try {
 			this.printThread.join();
 		} catch (InterruptedException ex) {
-			assert(false) : "Logger stopPrintiThread was interrupted";
+			assert(false) : "Logger stopPrintingThread was interrupted";
 		}
 
 	}

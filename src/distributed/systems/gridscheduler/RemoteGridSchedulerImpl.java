@@ -1,9 +1,6 @@
 package distributed.systems.gridscheduler;
 
-import distributed.systems.gridscheduler.model.Event;
-import distributed.systems.gridscheduler.model.GridScheduler;
-import distributed.systems.gridscheduler.model.Job;
-import distributed.systems.gridscheduler.model.LamportsClock;
+import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.rmi.AlreadyBoundException;
@@ -20,11 +17,22 @@ import java.rmi.server.UnicastRemoteObject;
 public class RemoteGridSchedulerImpl implements RemoteGridScheduler {
 
 	public static final int REGISTRY_PORT = 1099;
+
 	private GridScheduler gs;
+	private RemoteGridScheduler stub;
+	private Logger logger;
+
+	private LogicalClock logicalClock;
 
 
 	public RemoteGridSchedulerImpl(String url) {
-		gs = new GridScheduler(url);
+		this.gs = new GridScheduler(url);
+		this.stub = null;
+		this.logicalClock = new LamportsClock();
+
+
+		// TODO: probably want to write this to a file instead
+		logger = new Logger(System.out);
 	}
 
 
@@ -59,11 +67,20 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler {
 		}
 	}
 
+	public RemoteGridScheduler getStub() throws RemoteException {
+
+		if (this.stub == null) {
+			this.stub = (RemoteGridScheduler) UnicastRemoteObject.exportObject(this, 0);
+		}
+
+		return this.stub;
+	}
 
 	@Override
 	public boolean registerResourceManager(RemoteResourceManager rrm) throws RemoteException {
-		System.out.printf("Registering a remote resource manager!\n");
-		return false;
+		String logLine = String.format("ResourceManager '%s' joined GridScheduler '%s'.", rrm.getName(), this.getName());
+		this.logEvent(new Event.GenericEvent(this.logicalClock, logLine));
+		return true;
 	}
 
 
@@ -80,7 +97,15 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler {
 
 
 	@Override
-	public boolean logEvent(Event e, LamportsClock timestamp) {
-		return false;
+	public boolean logEvent(Event e) {
+		this.logger.log(e);
+		return true;
 	}
+
+
+	@Override
+	public String getName() throws RemoteException {
+		return this.gs.getName();
+	}
+
 }

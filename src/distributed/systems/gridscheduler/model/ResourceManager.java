@@ -203,4 +203,12 @@ public class ResourceManager implements INodeEventHandler, IMessageReceivedHandl
 
 	}
 
+	public Cluster getCluster() {
+		return this.cluster;
+	}
+
+	public String getName() {
+		return this.cluster.getName();
+	}
+
 }

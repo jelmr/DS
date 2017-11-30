@@ -18,4 +18,6 @@ public interface RemoteResourceManager extends Remote {
 	// Todo: Probably JobScheduleResponse
 	boolean scheduleJob(Job job) throws RemoteException;
 
+	String getName() throws RemoteException;
+
 }
