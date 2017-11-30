@@ -53,7 +53,7 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler {
 
 		try {
 			RemoteGridSchedulerImpl gs = new RemoteGridSchedulerImpl(url);
-			RemoteGridScheduler rgs = (RemoteGridScheduler) UnicastRemoteObject.exportObject(gs, 0);
+			RemoteGridScheduler rgs = gs.getStub();
 
 			Registry registry = LocateRegistry.getRegistry();
 			registry.bind(url, rgs);

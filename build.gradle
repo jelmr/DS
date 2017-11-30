@@ -39,3 +39,12 @@ task rm(type: JavaExec) {
         args = Eval.me(argv)
     }
 }
+
+task client(type: JavaExec) {
+    main = 'distributed.systems.gridscheduler.Client'
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("argv") ) {
+        args = Eval.me(argv)
+    }
+}

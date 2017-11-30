@@ -1,5 +1,8 @@
 package distributed.systems.gridscheduler.model;
 
+import java.io.Serializable;
+
+
 /**
  * 
  * The possible states of a job. When a job is first created, it is initialized to the <i>Waiting</i>
@@ -9,7 +12,7 @@ package distributed.systems.gridscheduler.model;
  * @author Niels Brouwers
  *
  */
-public enum JobStatus {
+public enum JobStatus implements Serializable {
 
 	/**
 	 * Indicates that the job has been freshly created and is waiting to be executed. 

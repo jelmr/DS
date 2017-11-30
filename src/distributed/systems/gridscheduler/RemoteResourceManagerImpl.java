@@ -1,11 +1,10 @@
 package distributed.systems.gridscheduler;
 
-import distributed.systems.gridscheduler.model.Cluster;
-import distributed.systems.gridscheduler.model.Job;
-import distributed.systems.gridscheduler.model.ResourceManager;
+import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.io.Serializable;
+import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -20,14 +19,19 @@ import java.rmi.server.UnicastRemoteObject;
 public class RemoteResourceManagerImpl implements RemoteResourceManager, Serializable {
 
 
-
+	private RemoteGridScheduler rgs;
 	private ResourceManager rm;
 	private RemoteResourceManager stub;
+	private LogicalClock logicalClock;
 
 
-	public RemoteResourceManagerImpl(Cluster cluster) {
+	public RemoteResourceManagerImpl(Cluster cluster, RemoteGridScheduler rgs) throws RemoteException {
 		this.rm = new ResourceManager(cluster);
+		this.rgs = rgs;
 		this.stub = null;
+		this.logicalClock = new LamportsClock();
+		RemoteResourceManager stub = this.getStub();
+		this.rgs.registerResourceManager(stub);
 	}
 
 
@@ -35,13 +39,13 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 		if (args.length < 5) {
 
-			System.out.printf("Usage: gradle rm  -Pargv=\"['<clusterName>', '<numberOfNodes>', '<registryHost>', '<registryPort>', '<gridScheduler1>' [... ,'gridSchedulerN']]\"");
+			System.out.printf("Usage: gradle rm  -Pargv=\"['<name>', '<numberOfNodes>', '<registryHost>', '<registryPort>', '<gridScheduler1>' [... ,'gridSchedulerN']]\"");
 
 
 			System.exit(1);
 		}
 
-		String clusterName = args[0];
+		String name = args[0];
 		int numberOfNodes = Integer.parseInt((args[1]));
 		String registryHost = args[2];
 		int registryPort = Integer.parseInt(args[3]);
@@ -61,20 +65,23 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 				// If we found a reachable GridScheduler
 
-				Cluster cluster = new Cluster(clusterName, rgs, numberOfNodes);
+				Cluster cluster = new Cluster(name, rgs, numberOfNodes);
 
-				RemoteResourceManagerImpl rrm = new RemoteResourceManagerImpl(cluster);
-				RemoteResourceManager stub = rrm.getStub();
+				RemoteResourceManagerImpl rm = new RemoteResourceManagerImpl(cluster, rgs);
 
-				rgs.registerResourceManager(stub);
+				RemoteResourceManager rrm = rm.getStub();
+				Registry registry = LocateRegistry.getRegistry();
+				registry.bind(name, rrm);
 
-				System.out.printf("RRM exiting.\n");
-				System.exit(0);
+				// TODO :Stop termination
 
 			}
 		} catch (RemoteException e) {
 			System.out.printf("Remote Exception:\n");
 			e.printStackTrace();
+		} catch (AlreadyBoundException e) {
+			System.out.printf("The url '%s' is already bound.", name);
+			System.exit(1);
 		}
 
 		if (rgs == null) {
@@ -110,7 +117,15 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 	@Override
 	public boolean scheduleJob(Job job) throws RemoteException {
+		String logLine = String.format("ResourceManager '%s' scheduled job with id=%d and duration=%d.", this.getName(), job.getId(), job.getDuration());
+		this.rgs.logEvent(new Event.GenericEvent(this.logicalClock, logLine));
 		return true;
+	}
+
+
+	@Override
+	public boolean logEvent(Event e) throws RemoteException {
+		return this.rgs.logEvent(e);
 	}
 
 

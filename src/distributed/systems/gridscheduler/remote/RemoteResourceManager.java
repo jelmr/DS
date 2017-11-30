@@ -1,5 +1,6 @@
 package distributed.systems.gridscheduler.remote;
 
+import distributed.systems.gridscheduler.model.Event;
 import distributed.systems.gridscheduler.model.Job;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -17,6 +18,8 @@ public interface RemoteResourceManager extends Remote {
 
 	// Todo: Probably JobScheduleResponse
 	boolean scheduleJob(Job job) throws RemoteException;
+
+	boolean logEvent(Event e) throws RemoteException;
 
 	String getName() throws RemoteException;
 
