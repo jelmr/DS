@@ -121,6 +121,12 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 
 	@Override
+	public int getLoad() throws RemoteException {
+		return 0;
+	}
+
+
+	@Override
 	public boolean registerAsDuplicate(RemoteResourceManager rrm) throws RemoteException {
 		return true;
 	}

@@ -1,11 +1,7 @@
 package distributed.systems.gridscheduler;
 
-import javax.swing.JFrame;
-
-import distributed.systems.gridscheduler.gui.ClusterStatusPanel;
 import distributed.systems.gridscheduler.gui.GridSchedulerPanel;
 import distributed.systems.gridscheduler.model.Cluster;
-import distributed.systems.gridscheduler.model.GridScheduler;
 import distributed.systems.gridscheduler.model.Job;
 import java.rmi.RemoteException;
 
@@ -35,6 +31,7 @@ public class Simulation implements Runnable {
 	 * simulation.
 	 */
 	public Simulation() {
+		/*
 		GridScheduler scheduler;
 		
 		// Setup the model. Create a grid scheduler and a set of clusters.
@@ -69,6 +66,7 @@ public class Simulation implements Runnable {
 		
 		// Stop grid scheduler
 		scheduler.stopPollThread();
+		*/
 	}
 
 	/**

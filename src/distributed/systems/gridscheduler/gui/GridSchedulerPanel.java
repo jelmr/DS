@@ -8,7 +8,8 @@ import java.util.ArrayList;
 
 import javax.swing.JFrame;
 
-import distributed.systems.gridscheduler.model.GridScheduler;
+import distributed.systems.gridscheduler.RemoteGridSchedulerImpl;
+
 
 /**
  * 
@@ -43,7 +44,7 @@ public class GridSchedulerPanel extends JFrame implements Runnable {
 	 * This is done so that the scheduler panel will always be on top.
 	 * @param scheduler The scheduler that is monitored by this Panel
 	 */
-	public GridSchedulerPanel(GridScheduler scheduler) {
+	public GridSchedulerPanel(RemoteGridSchedulerImpl scheduler) {
 		super("Status");
 		this.setSize(340, 680);
 		this.setResizable(false);

@@ -3,8 +3,10 @@ package distributed.systems.gridscheduler.gui;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.rmi.RemoteException;
 
-import distributed.systems.gridscheduler.model.GridScheduler;
+import distributed.systems.gridscheduler.RemoteGridSchedulerImpl;
+
 
 /**
  * 
@@ -25,9 +27,9 @@ public class GridSchedulerStatusPanel extends StatusPanel {
 	private final static int panelWidth = 300;
 	private int colWidth = panelWidth / 2;
 
-	private GridScheduler scheduler;
+	private RemoteGridSchedulerImpl scheduler;
 	
-	public GridSchedulerStatusPanel(GridScheduler scheduler) {
+	public GridSchedulerStatusPanel(RemoteGridSchedulerImpl scheduler) {
 		this.scheduler = scheduler;
 		setPreferredSize(new Dimension(panelWidth,50));
 	}
@@ -47,8 +49,11 @@ public class GridSchedulerStatusPanel extends StatusPanel {
 	    int y = padding + fontHeight;
 	    
 	    g.drawString("Scheduler name ", x, y);
-	    g.drawString("" + scheduler.getName(), x + colWidth, y);
-	    y += fontHeight;
+		try {
+			g.drawString("" + scheduler.getName(), x + colWidth, y);
+		} catch (RemoteException e) {
+		}
+		y += fontHeight;
 	    
 	    g.drawString("Jobs waiting ", x, y);
 	    g.drawString("" + scheduler.getWaitingJobs(), x + colWidth, y);

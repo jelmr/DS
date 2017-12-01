@@ -15,6 +15,8 @@ public interface RemoteResourceManager extends Remote {
 
 	boolean isAlive() throws RemoteException;
 
+	int getLoad() throws RemoteException;
+
 	boolean registerAsDuplicate(RemoteResourceManager rrm) throws RemoteException;
 
 	// Todo: Probably JobScheduleResponse

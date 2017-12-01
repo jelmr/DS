@@ -1,14 +1,18 @@
 package distributed.systems.gridscheduler;
 
+import distributed.systems.core.Socket;
+import distributed.systems.core.SynchronizedSocket;
+import distributed.systems.example.LocalSocket;
 import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.rmi.AlreadyBoundException;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 
@@ -16,27 +20,64 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author Jelmer Mulder
  *         Date: 29/11/2017
  */
-public class RemoteGridSchedulerImpl implements RemoteGridScheduler {
+public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 	public static final int REGISTRY_PORT = 1099;
 
+
+
+	// job queue
+	private ConcurrentLinkedQueue<Job> jobQueue;
+
+	// local name
+	private final String name;
+
+
+	// TODO: Merge these two into one HashMap? Careful not to rely on rm.getName(), since that is remote operation.
+	// a hashmap linking each resource manager to an estimated load
+	private ConcurrentHashMap<String, Integer> resourceManagerLoad;
+
+	// name -> stub
+	private ConcurrentHashMap<String, RemoteResourceManager> resourceManagers;
+
+
+
+	private long pollSleep = 1000;
+
+	// polling thread
+	private Thread pollingThread;
+	private boolean running;
+
+
+
 	private LogicalClock logicalClock;
-	private GridScheduler gs;
 	private RemoteGridScheduler stub;
 	private Logger logger;
+	private Registry registry;
 
 
+	public RemoteGridSchedulerImpl(String name) {
 
-	public RemoteGridSchedulerImpl(String url) {
-
-
-		this.gs = new GridScheduler(url);
 		this.stub = null;
 		this.logicalClock = new LamportsClock();
 
 
 		// TODO: probably want to write this to a file instead
 		logger = new Logger(System.out);
+
+
+
+		// init members
+		this.name = name;
+		this.resourceManagerLoad = new ConcurrentHashMap<>();
+		this.resourceManagers = new ConcurrentHashMap<>();
+		this.jobQueue = new ConcurrentLinkedQueue<>();
+
+
+		// start the polling thread
+		running = true;
+		pollingThread = new Thread(this);
+		pollingThread.start();
 	}
 
 
@@ -54,9 +95,9 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler {
 
 
 	private void start() throws RemoteException {
-		String name = this.gs.getName();
+		String name = this.getName();
 
-		LocateRegistry.createRegistry(REGISTRY_PORT);
+		registry = LocateRegistry.createRegistry(REGISTRY_PORT);
 		this.logEvent(new Event.GenericEvent(this.logicalClock, "Started registry on port %d.", REGISTRY_PORT));
 
 
@@ -84,6 +125,18 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler {
 		}
 
 		return this.stub;
+	}
+
+	public RemoteResourceManager getResourceManager(String name) throws RemoteException{
+		if (this.resourceManagers.contains(name)) {
+			return this.resourceManagers.get(name);
+		} else {
+			try {
+				return (RemoteResourceManager) this.registry.lookup(name);
+			} catch (NotBoundException e) {
+				return null;
+			}
+		}
 	}
 
 	@Override
@@ -115,7 +168,116 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler {
 
 	@Override
 	public String getName() throws RemoteException {
-		return this.gs.getName();
+		return this.name;
 	}
 
+	/**
+	 * Gets the number of jobs that are waiting for completion.
+	 * @return
+	 */
+	public int getWaitingJobs() {
+		return jobQueue.size();
+	}
+
+	// finds the least loaded resource manager and returns its name
+	private String getLeastLoadedRM() {
+		String ret = null;
+		int minLoad = Integer.MAX_VALUE;
+
+		// loop over all resource managers, and pick the one with the lowest load
+		for (String key : resourceManagerLoad.keySet())
+		{
+			if (resourceManagerLoad.get(key) <= minLoad)
+			{
+				ret = key;
+				minLoad = resourceManagerLoad.get(key);
+			}
+		}
+
+		return ret;
+	}
+
+	private void removeResourceManager(String name) {
+		this.resourceManagerLoad.remove(name);
+		this.resourceManagers.remove(name);
+	}
+
+	@Override
+	public void run() {
+		while (running) {
+			// send a message to each resource manager, requesting its load
+			for (String name : resourceManagerLoad.keySet())
+			{
+				try {
+					// TODO: Make this asynchronous.
+					RemoteResourceManager rm = this.getResourceManager(name);
+					this.resourceManagerLoad.put(name, rm.getLoad());
+
+				} catch (RemoteException ignored) {}
+			}
+
+			// schedule waiting messages to the different clusters
+			for (Job job : jobQueue)
+			{
+				String leastLoadedRM =  getLeastLoadedRM();
+
+				if (leastLoadedRM!=null) {
+
+
+					boolean jobSubmitted = false;
+					do {
+						try {
+							this.getResourceManager(leastLoadedRM).addJob(job);
+							jobSubmitted = true;
+						} catch (RemoteException e) {
+							// TODO: Check if the RM really is unavailable
+							this.removeResourceManager(name);	 // This RM is not accessible? Remove it.
+						}
+
+						leastLoadedRM = getLeastLoadedRM();
+					} while (!jobSubmitted);
+
+
+					jobQueue.remove(job);
+
+					// increase the estimated load of that RM by 1 (because we just added a job)
+					int load = resourceManagerLoad.get(leastLoadedRM);
+					resourceManagerLoad.put(leastLoadedRM, load+1);
+
+				}
+
+			}
+
+			// sleep
+			try
+			{
+				Thread.sleep(pollSleep);
+			} catch (InterruptedException ex) {
+				assert(false) : "Grid scheduler runtread was interrupted";
+			}
+
+		}
+
+	}
+
+	/**
+	 * Polling thread runner. This thread polls each resource manager in turn to get its load,
+	 * then offloads any job in the waiting queue to that resource manager
+	 */
+
+
+	/**
+	 * Stop the polling thread. This has to be called explicitly to make sure the program
+	 * terminates cleanly.
+	 *
+	 */
+	public void stopPollThread() {
+		running = false;
+		try {
+			pollingThread.join();
+		} catch (InterruptedException ex) {
+			assert(false) : "Grid scheduler stopPollThread was interrupted";
+		}
+
+	}
 }
