@@ -1,11 +1,19 @@
+To start a Cluster:
+    gradle rm -Pargv="['<rmName>', '<numNodes>', '<registryHost>', '<registryPort>', '<gsName>']"
+
+    e.g.:
+    $ gradle rm -Pargv="['rm1', '10', '127.0.0.1', '1099', 'gs1']"
+
+
 To start a Grid Scheduler:
     gradle gs -Pargv="['<gsName>']"
 
     e.g.:
     $ gradle gs -Pargv="['gs1']"
 
-To start a Cluster:
-    gradle rm -Pargv="['<rmName>', '<numNodes>', '<registryHost>', '<registryPort>', '<gsName>']"
+
+To start a Client:
+    gradle client -Pargv="['<name>', '<numJobs>', 'minJobDuration', 'maxJobDuration', '<registryHost>', '<registryPort>', '<rmName>']"
 
     e.g.:
-    $ gradle rm -Pargv="['rm1', '10', '127.0.0.1', '1099', 'gs1']"
+    $ gradle client -Pargv="['client1', '5', '5000', '14000', '127.0.0.1','1099', 'rm1']"
