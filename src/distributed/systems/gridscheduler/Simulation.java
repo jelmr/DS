@@ -7,6 +7,8 @@ import distributed.systems.gridscheduler.gui.GridSchedulerPanel;
 import distributed.systems.gridscheduler.model.Cluster;
 import distributed.systems.gridscheduler.model.GridScheduler;
 import distributed.systems.gridscheduler.model.Job;
+import java.rmi.RemoteException;
+
 
 /**
  *
@@ -79,8 +81,12 @@ public class Simulation implements Runnable {
 		while (gridSchedulerPanel.isVisible()) {
 			// Add a new job to the system that take up random time
 			Job job = new Job(8000 + (int)(Math.random() * 5000), jobId++);
-			clusters[0].getResourceManager().addJob(job);
-			
+			try {
+				clusters[0].getResourceManager().addJob(job);
+			} catch (RemoteException e) {
+				e.printStackTrace();
+			}
+
 			try {
 				// Sleep a while before creating a new job
 				Thread.sleep(100L);

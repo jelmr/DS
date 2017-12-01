@@ -13,6 +13,6 @@ package distributed.systems.core;
  *
  * Reconstructed from vague guidelines about what it should have been doing
  */
-public interface IMessageReceivedHandler {
+public interface IMessageReceivedHandler  {
     public void onMessageReceived(Message message);
 }

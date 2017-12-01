@@ -8,6 +8,8 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 /**
@@ -18,14 +20,16 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler {
 
 	public static final int REGISTRY_PORT = 1099;
 
+	private LogicalClock logicalClock;
 	private GridScheduler gs;
 	private RemoteGridScheduler stub;
 	private Logger logger;
 
-	private LogicalClock logicalClock;
 
 
 	public RemoteGridSchedulerImpl(String url) {
+
+
 		this.gs = new GridScheduler(url);
 		this.stub = null;
 		this.logicalClock = new LamportsClock();
@@ -44,28 +48,34 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler {
 			System.exit(1);
 		}
 
-		LocateRegistry.createRegistry(REGISTRY_PORT);
-		System.out.printf("Started registry on port %d.\n", REGISTRY_PORT);
-
 		String url = args[0];
+		new RemoteGridSchedulerImpl(url).start();
+	}
 
-		System.out.printf("Trying to start Grid Scheduler with URL '%s'\n", url);
+
+	private void start() throws RemoteException {
+		String name = this.gs.getName();
+
+		LocateRegistry.createRegistry(REGISTRY_PORT);
+		this.logEvent(new Event.GenericEvent(this.logicalClock, "Started registry on port %d.", REGISTRY_PORT));
+
 
 		try {
-			RemoteGridSchedulerImpl gs = new RemoteGridSchedulerImpl(url);
-			RemoteGridScheduler rgs = gs.getStub();
-
+			RemoteGridScheduler rgs = this.getStub();
 			Registry registry = LocateRegistry.getRegistry();
-			registry.bind(url, rgs);
+			registry.bind(name, rgs);
+			this.logEvent(new Event.GenericEvent(this.logicalClock, "Started up GridScheduler '%s'.", this.getName()));
 
 		} catch (RemoteException e) {
-			System.out.printf("Remote Exception:\n");
 			e.printStackTrace();
 		} catch (AlreadyBoundException e) {
-			System.out.printf("The url '%s' is already bound.", url);
+
+			this.logEvent(new Event.GenericEvent(this.logicalClock, "The name '%s' is already bound.", this.getName()));
+			this.logger.close();
 			System.exit(1);
 		}
 	}
+
 
 	public RemoteGridScheduler getStub() throws RemoteException {
 

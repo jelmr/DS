@@ -44,7 +44,7 @@ public class Client {
 			lookupResourceManagers(args, 6, register);
 		} catch (ConnectException e) {
 			System.out.printf("Could not connect to RMI registry.\n");
-			System.exit(0);
+			System.exit(1);
 		} catch (RemoteException e) {
 			e.printStackTrace();
 		}
@@ -97,7 +97,7 @@ public class Client {
 					RemoteResourceManager rrm = this.resourceManagers.get(resourceManagerIndex % numResourceManagers);
 
 					System.out.printf("Scheduling a job.\n");
-					rrm.scheduleJob(job);
+					rrm.addJob(job);
 					System.out.printf("DONE Scheduling a job.\n");
 
 					scheduledJob = true;

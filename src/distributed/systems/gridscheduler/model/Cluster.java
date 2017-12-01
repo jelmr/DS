@@ -1,6 +1,8 @@
 package distributed.systems.gridscheduler.model;
 
+import distributed.systems.gridscheduler.RemoteResourceManagerImpl;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
+import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,7 +16,6 @@ import java.util.List;
  */
 public class Cluster implements Runnable {
 	private List <Node> nodes;
-	private ResourceManager resourceManager;
 	private String url;
 	
 	// polling frequency, 10hz
@@ -23,6 +24,8 @@ public class Cluster implements Runnable {
 	// polling thread
 	private Thread pollingThread;
 	private boolean running;
+
+	private RemoteResourceManagerImpl rrm;
 	
 	/**
 	 * Creates a new Cluster, with a number of nodes and a resource manager
@@ -34,9 +37,9 @@ public class Cluster implements Runnable {
 	 * <DD>parameter <CODE>nrNodes</code> must be greater than 0
 	 * </DL>
 	 * @param name the name of this cluster
-	 * @param nrNodes the number of nodes in this cluster
+	 * @param nodeCount the number of nodes in this cluster
 	 */
-	public Cluster(String name, RemoteGridScheduler rgs, int nodeCount) {
+	public Cluster(String name, RemoteResourceManagerImpl rrm, RemoteGridScheduler rgs, int nodeCount) {
 		// Preconditions
 		assert(name != null) : "parameter 'name' cannot be null";
 		assert(rgs != null) : "parameter 'gridSchedulerURL' cannot be null";
@@ -44,11 +47,10 @@ public class Cluster implements Runnable {
 		
 		// Initialize members
 		this.url = name;
+		this.rrm = rrm;
 
 		nodes = new ArrayList<Node>(nodeCount);
 		
-		// Initialize the resource manager for this cluster
-		resourceManager = new ResourceManager(this);
 
 
 		// Initialize the nodes 
@@ -56,7 +58,7 @@ public class Cluster implements Runnable {
 			Node n = new Node();
 			
 			// Make nodes report their status to the resource manager
-			n.addNodeEventHandler(resourceManager);
+			n.addNodeEventHandler(rrm);
 			nodes.add(n);
 		}
 		
@@ -79,8 +81,8 @@ public class Cluster implements Runnable {
 	 * Returns the resource manager object for this cluster.
 	 * @return the resource manager object for this cluster
 	 */
-	public ResourceManager getResourceManager() {
-		return resourceManager;
+	public RemoteResourceManager getResourceManager() {
+		return this.rrm;
 	}
 
 	/**

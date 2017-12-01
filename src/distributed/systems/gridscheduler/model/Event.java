@@ -24,8 +24,8 @@ public abstract class Event implements Serializable{
 		private String s;
 
 
-		public GenericEvent(LogicalClock timestamp, String s) {
-			this.s = s;
+		public GenericEvent(LogicalClock timestamp, String s, Object... objects) {
+			this.s = String.format(s, objects);
 			this.timestamp = timestamp;
 		}
 

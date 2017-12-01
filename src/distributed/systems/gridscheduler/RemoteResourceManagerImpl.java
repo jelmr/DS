@@ -10,28 +10,42 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 /**
  * @author Jelmer Mulder
  *         Date: 29/11/2017
  */
-public class RemoteResourceManagerImpl implements RemoteResourceManager, Serializable {
+public class RemoteResourceManagerImpl implements RemoteResourceManager, Serializable, INodeEventHandler {
 
+
+	public static final int MAX_QUEUE_SIZE = 32;
+
+	private Cluster cluster;
+	private Queue<Job> jobQueue;
+	private int jobQueueSize;
+	private String name;
 
 	private RemoteGridScheduler rgs;
-	private ResourceManager rm;
 	private RemoteResourceManager stub;
 	private LogicalClock logicalClock;
 
 
-	public RemoteResourceManagerImpl(Cluster cluster, RemoteGridScheduler rgs) throws RemoteException {
-		this.rm = new ResourceManager(cluster);
+	public RemoteResourceManagerImpl(String name, int numberOfNodes, RemoteGridScheduler rgs) throws RemoteException {
+
+		this.name = name;
+		this.cluster = new Cluster(name, this, rgs, numberOfNodes);
+
+		this.stub = this.getStub();
 		this.rgs = rgs;
-		this.stub = null;
+		this.rgs.registerResourceManager(this.stub);
+
 		this.logicalClock = new LamportsClock();
-		RemoteResourceManager stub = this.getStub();
-		this.rgs.registerResourceManager(stub);
+
+		this.jobQueue = new ConcurrentLinkedQueue<Job>();
+		this.jobQueueSize = cluster.getNodeCount() + MAX_QUEUE_SIZE;
 	}
 
 
@@ -64,10 +78,7 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 				};
 
 				// If we found a reachable GridScheduler
-
-				Cluster cluster = new Cluster(name, rgs, numberOfNodes);
-
-				RemoteResourceManagerImpl rm = new RemoteResourceManagerImpl(cluster, rgs);
+				RemoteResourceManagerImpl rm = new RemoteResourceManagerImpl(name, numberOfNodes, rgs);
 
 				RemoteResourceManager rrm = rm.getStub();
 				Registry registry = LocateRegistry.getRegistry();
@@ -116,10 +127,63 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 
 	@Override
-	public boolean scheduleJob(Job job) throws RemoteException {
-		String logLine = String.format("ResourceManager '%s' scheduled job with id=%d and duration=%d.", this.getName(), job.getId(), job.getDuration());
+	public boolean addJob(Job job) throws RemoteException {
+		String logLine = String.format("ResourceManager '%s' received request to process job id='%d' with duration=%d from '%s'.", this.getName(), job.getId(), job.getDuration(), job.getIssueingClientName());
 		this.rgs.logEvent(new Event.GenericEvent(this.logicalClock, logLine));
+
+
+		if (jobQueue.size() >= jobQueueSize) { // if the jobqueue is full, offload the job to the grid scheduler
+			this.rgs.scheduleJob(job, this.stub);
+
+		} else { // otherwise store it in the local queue
+			jobQueue.add(job);
+			scheduleJobs();
+		}
 		return true;
+	}
+
+	/**
+	 * Tries to find a waiting job in the jobqueue.
+	 * @return
+	 */
+	public Job getWaitingJob() {
+		// find a waiting job
+		for (Job job : jobQueue)
+			if (job.getStatus() == JobStatus.Waiting)
+				return job;
+
+		// no waiting jobs found, return null
+		return null;
+
+	}
+
+	/**
+	 * Tries to schedule jobs in the jobqueue to free nodes.
+	 */
+	public void scheduleJobs() {
+		// while there are jobs to do and we have nodes available, assign the jobs to the
+		// free nodes
+		Node freeNode;
+		Job waitingJob;
+
+		while ( ((waitingJob = getWaitingJob()) != null) && ((freeNode = cluster.getFreeNode()) != null) ) {
+			freeNode.startJob(waitingJob);
+		}
+
+	}
+
+
+	/**
+	 * Called when a job is finished
+	 * <p>
+	 * pre: parameter 'job' cannot be null
+	 */
+	public void jobDone(Job job) {
+		// preconditions
+		assert(job != null) : "parameter 'job' cannot be null";
+
+		// job finished, remove it from our pool
+		jobQueue.remove(job);
 	}
 
 
@@ -131,7 +195,8 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 	@Override
 	public String getName() throws RemoteException {
-		return this.rm.getName();
+		return this.name;
 	}
+
 
 }

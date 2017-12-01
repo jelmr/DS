@@ -22,7 +22,7 @@ public class Node {
 	 */
 	public Node() {
 		status = NodeStatus.Idle;
-		handlers = new ArrayList<INodeEventHandler>();
+		handlers = new ArrayList<>();
 	}
 
 	/**

@@ -13,7 +13,7 @@ import java.util.PriorityQueue;
  */
 public class Logger implements Runnable{
 
-	private static final int MAXIMUM_QUEUE_TIME = 5000;
+	private static final int MAXIMUM_QUEUE_TIME = 500;
 	private static final int LOGGING_FREQUENCY = 100;
 	private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
