@@ -1,8 +1,5 @@
 package distributed.systems.gridscheduler;
 
-import distributed.systems.core.Socket;
-import distributed.systems.core.SynchronizedSocket;
-import distributed.systems.example.LocalSocket;
 import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
