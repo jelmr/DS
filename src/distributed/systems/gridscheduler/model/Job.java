@@ -1,5 +1,6 @@
 package distributed.systems.gridscheduler.model;
 
+import distributed.systems.gridscheduler.remote.RemoteClient;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.io.Serializable;
 
@@ -13,34 +14,14 @@ import java.io.Serializable;
 public class Job implements Serializable {
 	private long duration;
 	private JobStatus status;
-	private long id;
+	private String id;
 	private RemoteResourceManager issueingResourceManager;
+	private RemoteClient issueingClient;
 	private String issueingClientName;
 
-	/**
-	 * Constructs a new Job object with a certain duration and id. The id has to be unique
-	 * within the distributed system to avoid collisions.
-	 * <P>
-	 * <DL>
-	 * <DT><B>Preconditions:</B>
-	 * <DD>parameter <CODE>duration</CODE> should be positive
-	 * </DL> 
-	 * @param duration job duration in milliseconds 
-	 * @param id job ID
-	 */
-	// TODO: Remove this, should not be used anymore.
-	public Job(long duration, long id) {
-		// Preconditions
-		assert(duration > 0) : "parameter 'duration' should be > 0";
-
-		this.duration = duration;
-		this.status = JobStatus.Waiting;
-		this.id = id; 
-	}
 
 
-
-	public Job(long duration, long id, RemoteResourceManager issueingResourceManager, String issueingClientName) {
+	public Job(long duration, String id, RemoteResourceManager issueingResourceManager, RemoteClient issueingClient, String issueingClientName) {
 		// Preconditions
 		assert(duration > 0) : "parameter 'duration' should be > 0";
 
@@ -48,6 +29,7 @@ public class Job implements Serializable {
 		this.status = JobStatus.Waiting;
 		this.id = id;
 		this.issueingClientName = issueingClientName;
+		this.issueingClient = issueingClient;
 		this.issueingResourceManager = issueingResourceManager;
 	}
 
@@ -59,6 +41,11 @@ public class Job implements Serializable {
 
 	public void setIssueingResourceManager(RemoteResourceManager issueingResourceManager) {
 		this.issueingResourceManager = issueingResourceManager;
+	}
+
+
+	public RemoteClient getIssueingClient() {
+		return issueingClient;
 	}
 
 
@@ -95,7 +82,7 @@ public class Job implements Serializable {
 	 * The message ID is a unique identifier for a message. 
 	 * @return the message ID
 	 */
-	public long getId() {
+	public String getId() {
 		return id;
 	}
 
@@ -106,4 +93,22 @@ public class Job implements Serializable {
 		return "Job {ID = " + id + "}";
 	}
 
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o)
+			return true;
+		if (!(o instanceof Job))
+			return false;
+
+		Job job = (Job) o;
+
+		return id.equals(job.id);
+	}
+
+
+	@Override
+	public int hashCode() {
+		return id.hashCode();
+	}
 }

@@ -1,30 +1,45 @@
 package distributed.systems.gridscheduler;
 
+import distributed.systems.gridscheduler.model.Event;
 import distributed.systems.gridscheduler.model.Job;
+import distributed.systems.gridscheduler.model.LamportsClock;
+import distributed.systems.gridscheduler.model.LogicalClock;
+import distributed.systems.gridscheduler.remote.RemoteClient;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.rmi.ConnectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
  * @author Jelmer Mulder
  *         Date: 30/11/2017
  */
-public class Client {
+public class Client implements RemoteClient {
 
 	private String name;
-	private List<RemoteResourceManager> resourceManagers;
+	private List<Named<RemoteResourceManager>> resourceManagers;
 	private int numberOfJobs;
 	private long minimumJobDuration, maximumJobDuration;
+
+	private LogicalClock logicalClock;
+
+	private RemoteClient stub;
+
+	private ConcurrentHashMap<String, Boolean> jobCompleted;
+	Registry registry;
 
 
 	public Client() {
 		this.resourceManagers = new ArrayList<>();
+		this.logicalClock = new LamportsClock();
+		this.jobCompleted = new ConcurrentHashMap<>();
 	}
 
 
@@ -40,8 +55,10 @@ public class Client {
 		int registryPort = Integer.parseInt(args[5]);
 
 		try {
-			Registry register = LocateRegistry.getRegistry(registryHost, registryPort);
-			lookupResourceManagers(args, 6, register);
+			registry = LocateRegistry.getRegistry(registryHost, registryPort);
+			registry.rebind(name, this.getStub());
+
+			lookupResourceManagers(args, 6, registry);
 		} catch (ConnectException e) {
 			System.out.printf("Could not connect to RMI registry.\n");
 			System.exit(1);
@@ -56,28 +73,28 @@ public class Client {
 			String rmName = args[i];
 			try {
 				RemoteResourceManager rrm = (RemoteResourceManager) register.lookup(rmName);
-				this.resourceManagers.add(rrm);
+				this.resourceManagers.add(new Named<>(rmName, rrm));
 			} catch (NotBoundException ignored){
 			};
 		}
 	}
 
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws RemoteException {
 
 		if (args.length < 7) {
 			System.out.printf("Usage: gradle client  -Pargv=\"['<name>', '<numberOfJobs>', '<minimumJobDuration>', '<maximumJobDuration>', '<registryHost>', '<registryPort>', '<resourceManager1>' [... ,'resourceManagerN']]\"");
 			System.exit(1);
 		}
 
-		new Client(args).start();
+		new Client(args).scheduleAllJobs();
 
 	}
 
 
-	private void start() {
+	private void scheduleAllJobs() throws RemoteException {
 
-		long jobId = 0;
+		long jobNum = 0;
 
 
 		// Used to implement round-robin for the resource managers
@@ -88,25 +105,12 @@ public class Client {
 
 			int startResourceManagerIndex = resourceManagerIndex;
 
+			String jobId = String.format("%s_%d", this.name, ++jobNum);
+
 			long duration = this.minimumJobDuration + (int) (Math.random() * (this.maximumJobDuration - this.minimumJobDuration));
-			Job job = new Job(duration, jobId++, null, this.name);
+			Job job = new Job(duration, jobId, null, this.getStub(), this.name);
 
-			boolean scheduledJob = false;
-			do {
-				try {
-					RemoteResourceManager rrm = this.resourceManagers.get(resourceManagerIndex % numResourceManagers);
-
-					System.out.printf("Scheduling a job.\n");
-					rrm.addJob(job);
-					System.out.printf("DONE Scheduling a job.\n");
-
-					scheduledJob = true;
-				} catch (RemoteException e) {
-					System.out.printf("-------------------------------------------------------------\n");
-					e.printStackTrace();
-				}
-				resourceManagerIndex++;
-			} while (!scheduledJob && resourceManagerIndex <= (startResourceManagerIndex+ numResourceManagers));
+			resourceManagerIndex = scheduleJob(resourceManagerIndex, numResourceManagers, startResourceManagerIndex, jobId, job);
 
 			try {
 				// Sleep a while before creating a new job
@@ -118,4 +122,101 @@ public class Client {
 		}
 	}
 
+
+	private int scheduleJob(int resourceManagerIndex, int numResourceManagers, int startResourceManagerIndex, String jobId, Job job) {
+		boolean scheduledJob = false;
+		do {
+			Named<RemoteResourceManager> namedrrm = this.resourceManagers.get(resourceManagerIndex % numResourceManagers);
+			RemoteResourceManager rrm = namedrrm.getObject();
+			String rmName = namedrrm.getName();
+
+			try {
+				// Log attempt to schedule job
+				String logLine = String.format("Client '%s' attempting to schedule job id='%s' at resource manager '%s'.", this.getName(), job.getId(), rmName);
+				Event.GenericEvent event = new Event.GenericEvent(this.logicalClock, logLine);
+
+				if (!RemoteResourceManager.logEvent(this.resourceManagers, event)) {
+					System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
+				}
+
+
+				// Attempt to schedule the job.
+				System.out.printf("Scheduled job '%s'.\n", job.getId());
+				scheduledJob = rrm.addJob(job);
+
+				if (scheduledJob) {
+					this.jobCompleted.put(jobId, false);
+					System.out.printf("DONE scheduling job '%s'.\n", job.getId());
+				}
+
+			} catch (RemoteException e) {
+				// Incase of RemoteException, assume the RM has crashed. Log this.
+				String logLine = String.format("Client '%s' has detected a crashed ResourceManager.", this.name);
+				Event.GenericEvent event = new Event.GenericEvent(this.logicalClock, logLine);
+
+				try {
+					if (!RemoteResourceManager.logEvent(this.resourceManagers, event)) {
+						System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
+						// All RMs have crashed, nothing we can do.
+						// TODO: Ask GridSchedulers for a RM instead?
+						System.exit(1);
+					}
+				} catch (RemoteException e1) {
+					e1.printStackTrace();
+				}
+
+				this.resourceManagers.remove(resourceManagerIndex % numResourceManagers);
+			}
+			resourceManagerIndex++;
+		} while (!scheduledJob && resourceManagerIndex <= (startResourceManagerIndex+ numResourceManagers));
+		return resourceManagerIndex;
+	}
+
+
+	public boolean hasOutStandingJobs() {
+		return this.jobCompleted.size() >0;
+	}
+
+
+	@Override
+	public void jobDone(Job job) throws RemoteException {
+
+		System.out.printf("Received response for job '%s'.\n", job.getId());
+
+		String logLine = String.format("Client '%s' received results for job id='%s'.", this.getName(), job.getId());
+		Event.GenericEvent event = new Event.GenericEvent(this.logicalClock, logLine);
+
+		if (!RemoteResourceManager.logEvent(this.resourceManagers, event)) {
+			System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
+		}
+
+		this.jobCompleted.remove(job.getId());
+
+
+		if (!this.hasOutStandingJobs()) {
+			try {
+				this.registry.unbind(this.name);
+				UnicastRemoteObject.unexportObject(this.stub, true);
+				UnicastRemoteObject.unexportObject(this.registry, true);
+				System.exit(0);
+			} catch (NotBoundException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public RemoteClient getStub() throws RemoteException {
+
+		if (this.stub == null) {
+			this.stub = (RemoteClient) UnicastRemoteObject.exportObject(this, 0);
+		}
+
+		return this.stub;
+	}
+
+
+	@Override
+	public String getName() throws RemoteException {
+		return this.name;
+	}
 }

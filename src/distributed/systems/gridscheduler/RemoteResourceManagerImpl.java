@@ -1,6 +1,7 @@
 package distributed.systems.gridscheduler;
 
 import distributed.systems.gridscheduler.model.*;
+import distributed.systems.gridscheduler.remote.RemoteClient;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.io.Serializable;
@@ -11,6 +12,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 
@@ -28,9 +30,12 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 	private int jobQueueSize;
 	private String name;
 
+	private ConcurrentHashMap<Job, Node> outstandingJobs;
+
 	private RemoteGridScheduler rgs;
 	private RemoteResourceManager stub;
 	private LogicalClock logicalClock;
+
 
 
 	public RemoteResourceManagerImpl(String name, int numberOfNodes, RemoteGridScheduler rgs) throws RemoteException {
@@ -43,6 +48,8 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 		this.rgs.registerResourceManager(this.stub);
 
 		this.logicalClock = new LamportsClock();
+
+		this.outstandingJobs = new ConcurrentHashMap<>();
 
 		this.jobQueue = new ConcurrentLinkedQueue<Job>();
 		this.jobQueueSize = cluster.getNodeCount() + MAX_QUEUE_SIZE;
@@ -82,7 +89,7 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 				RemoteResourceManager rrm = rm.getStub();
 				Registry registry = LocateRegistry.getRegistry();
-				registry.bind(name, rrm);
+				registry.rebind(name, rrm);
 
 				// TODO :Stop termination
 
@@ -90,9 +97,6 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 		} catch (RemoteException e) {
 			System.out.printf("Remote Exception:\n");
 			e.printStackTrace();
-		} catch (AlreadyBoundException e) {
-			System.out.printf("The url '%s' is already bound.", name);
-			System.exit(1);
 		}
 
 		if (rgs == null) {
@@ -134,7 +138,7 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 	@Override
 	public boolean addJob(Job job) throws RemoteException {
-		String logLine = String.format("ResourceManager '%s' received request to process job id='%d' with duration=%d from '%s'.", this.getName(), job.getId(), job.getDuration(), job.getIssueingClientName());
+		String logLine = String.format("ResourceManager '%s' received request to process job id='%s' with duration=%d from '%s'.", this.getName(), job.getId(), job.getDuration(), job.getIssueingClientName());
 		this.rgs.logEvent(new Event.GenericEvent(this.logicalClock, logLine));
 
 
@@ -173,6 +177,7 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 		Job waitingJob;
 
 		while ( ((waitingJob = getWaitingJob()) != null) && ((freeNode = cluster.getFreeNode()) != null) ) {
+			this.outstandingJobs.put(waitingJob, freeNode);
 			freeNode.startJob(waitingJob);
 		}
 
@@ -189,7 +194,14 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 		assert(job != null) : "parameter 'job' cannot be null";
 
 		// job finished, remove it from our pool
+		RemoteClient client = job.getIssueingClient();
+		try {
+			client.jobDone(job);
+		} catch (RemoteException e) {
+
+		}
 		jobQueue.remove(job);
+
 	}
 
 
