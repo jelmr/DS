@@ -12,8 +12,18 @@ import java.rmi.RemoteException;
  */
 public interface RemoteClient extends Remote {
 
+	/**
+	 * Returns the 'results' of a Job to the issueing Client.
+	 * @param job The job that has completed.
+	 * @throws RemoteException
+	 */
 	void jobDone(Job job) throws RemoteException;
 
+	/**
+	 * Get the name of this Client.
+	 * @return The name of this Client.
+	 * @throws RemoteException
+	 */
 	String getName() throws RemoteException;
 
 }
