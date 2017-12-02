@@ -74,8 +74,39 @@ public enum EventType {
 	 */
 	RM_RECEIVED_JOB_REQUEST("ResourceManager '%s' received a request to process job id='%s' with duration='%d' from '%s'."),
 
-	NODE_JOB_DONE(""),
-	RM_JOB_DONE(""),
+	/**
+	 * Issued when a RM adds a job to its local queue.
+	 * Format args:
+	 * 1: (String) Source RM name.
+	 * 2: (String) Job ID
+	 */
+	RM_QUEUED_JOB("ResourceManager '%s' added job id='%s' to its local job queue."),
+
+	/**
+	 * Issued when a RM schedules a job on one of its local Nodes.
+	 * Format args:
+	 * 1: (String) Source RM name.
+	 * 2: (String) Job ID
+	 * 3: (String) Target Node name
+	 */
+	RM_SCHEDULED_JOB_ON_NODE("ResourceManager '%s' scheduled job id='%s' on Node '%s'."),
+
+	/**
+	 * Issued when a RM receives a Job request from a Client or a GridScheduler.
+	 * Format args:
+	 * 1: (String) Source RM name.
+	 * 2: (String) Job ID
+	 * 3: (String) Target GS name.
+	 */
+	RM_OFFLOAD_TO_GS_ATTEMPT("ResourceManager '%s' is attempting to offloaded job id='%s' to GridScheduler '%s'."),
+
+	/**
+	 * Issued when a RM has finished processing a job.
+	 * Format args:
+	 * 1: (String) RM that finished the job
+	 * 2: (String) jobId
+	 */
+	RM_FINISHED_JOB("ResourceManager '%s' has finished processing Job id='%s'."),
 
 	/**
 	 * Issued when a Client receives the results for a Job it issued.

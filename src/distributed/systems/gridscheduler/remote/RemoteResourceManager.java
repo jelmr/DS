@@ -1,5 +1,6 @@
 package distributed.systems.gridscheduler.remote;
 
+import distributed.systems.gridscheduler.Logger;
 import distributed.systems.gridscheduler.Named;
 import distributed.systems.gridscheduler.model.Event;
 import distributed.systems.gridscheduler.model.Job;
@@ -12,27 +13,27 @@ import java.util.List;
  * @author Jelmer Mulder
  *         Date: 29/11/2017
  */
-public interface RemoteResourceManager extends Remote {
+public interface RemoteResourceManager extends Remote, Logger {
 
-	static boolean logEvent(List<Named<RemoteResourceManager>> resourceManagers, Event e) throws RemoteException {
+	// TODO: Merge this with Logger logEvent
+	static boolean logEvent(List<Named<RemoteResourceManager>> loggers, Event e) throws RemoteException {
 
-		if (resourceManagers.size() < 1) {
-			System.out.printf("No ResourceManagers to log to.");
+		if (loggers.size() <= 0) {
+			System.out.printf("No loggers found.\n");
 			return false;
 		}
-
 		boolean logSubmitted = false;
-		int resourceManagerIndex = 0;
-		int numResourceManagers = resourceManagers.size();
+		int loggerIndex = 0;
+		int numLoggers = loggers.size();
 
 		do {
 			try {
-				RemoteResourceManager rrm = resourceManagers.get(resourceManagerIndex).getObject();
-				rrm.logEvent(e);
+				Logger rgs = (Logger)loggers.get(loggerIndex).getObject();
+				rgs.logEvent(e);
 				logSubmitted = true;
 			} catch (RemoteException ignored) {}
-			resourceManagerIndex++;
-		} while (!logSubmitted && resourceManagerIndex < (numResourceManagers));
+			loggerIndex++;
+		} while (!logSubmitted && loggerIndex < (numLoggers));
 
 
 		return logSubmitted;
@@ -47,8 +48,8 @@ public interface RemoteResourceManager extends Remote {
 	// Todo: Probably JobScheduleResponse
 	boolean addJob(Job job) throws RemoteException;
 
-	boolean logEvent(Event e) throws RemoteException;
-
 	String getName() throws RemoteException;
+
+	public void jobDone(Job job) throws RemoteException;
 
 }

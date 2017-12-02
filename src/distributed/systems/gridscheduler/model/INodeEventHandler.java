@@ -1,5 +1,8 @@
 package distributed.systems.gridscheduler.model;
 
+import distributed.systems.gridscheduler.Logger;
+
+
 /**
  * 
  * Event handler for nodes. This allows nodes to communicate their status back to the cluster
@@ -8,9 +11,9 @@ package distributed.systems.gridscheduler.model;
  * @author Niels Brouwers
  *
  */
-public interface INodeEventHandler {
+public interface INodeEventHandler extends Logger{
 
 	// notify the completion of a job
-	public void jobDone(Job job);
+
 
 }

@@ -36,13 +36,13 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 	private RemoteResourceManager stub;
 	private LogicalClock logicalClock;
 
-	private Logger logger;
+	private QueuedLogger logger;
 
 
 
 	public RemoteResourceManagerImpl(String name, int numberOfNodes, Named<RemoteGridScheduler> rgs) throws RemoteException {
 
-		this.logger = new Logger(System.out);
+		this.logger = new QueuedLogger(System.out);
 		this.logicalClock = new LamportsClock();
 
 		this.name = name;
@@ -151,10 +151,13 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 
 		if (jobQueue.size() >= jobQueueSize) { // if the jobqueue is full, offload the job to the grid scheduler
-			this.rgs.getObject().scheduleJob(job, this.stub);
+			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.RM_OFFLOAD_TO_GS_ATTEMPT, this.getName(), job.getId(), this.rgs.getName()));
+			this.rgs.getObject().offloadJob(job, this.stub);
 
 		} else { // otherwise store it in the local queue
 			jobQueue.add(job);
+			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.RM_QUEUED_JOB, this.getName(), job.getId(), job.getDuration()));
+
 			scheduleJobs();
 		}
 		return true;
@@ -185,6 +188,10 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 		Job waitingJob;
 
 		while ( ((waitingJob = getWaitingJob()) != null) && ((freeNode = cluster.getFreeNode()) != null) ) {
+			try {
+				// TODO: Remove try catch?
+				this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.RM_SCHEDULED_JOB_ON_NODE, this.name, waitingJob.getId(), freeNode.getName()));
+			} catch (RemoteException ignored) {}
 			this.outstandingJobs.put(waitingJob, freeNode);
 			freeNode.startJob(waitingJob);
 		}
@@ -204,9 +211,10 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 		// job finished, remove it from our pool
 		RemoteClient client = job.getIssueingClient();
 		try {
+			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.RM_FINISHED_JOB, this.name, job.getId()));
 			client.jobDone(job);
-		} catch (RemoteException e) {
-
+		} catch (RemoteException ignored) {
+			// TODO: Do something
 		}
 		jobQueue.remove(job);
 

@@ -17,7 +17,7 @@ import java.util.List;
  */
 public class Cluster implements Runnable {
 	private List <Node> nodes;
-	private String url;
+	private String name;
 	
 	// polling frequency, 10hz
 	private long pollSleep = 100;
@@ -47,7 +47,7 @@ public class Cluster implements Runnable {
 		assert(nodeCount > 0) : "parameter 'nodeCount' cannot be smaller or equal to zero";
 		
 		// Initialize members
-		this.url = name;
+		this.name = name;
 		this.rrm = rrm;
 
 		nodes = new ArrayList<>(nodeCount);
@@ -56,7 +56,8 @@ public class Cluster implements Runnable {
 
 		// Initialize the nodes 
 		for (int i = 0; i < nodeCount; i++) {
-			Node n = new Node();
+			String nodeName = String.format("%s_%d", name, i);
+			Node n = new Node(nodeName);
 			
 			// Make nodes report their status to the resource manager
 			n.addNodeEventHandler(rrm);
@@ -87,11 +88,11 @@ public class Cluster implements Runnable {
 	}
 
 	/**
-	 * Returns the url of the cluster
-	 * @return the url of the cluster
+	 * Returns the name of the cluster
+	 * @return the name of the cluster
 	 */
 	public String getName() {
-		return url;
+		return name;
 	}
 
 	/**

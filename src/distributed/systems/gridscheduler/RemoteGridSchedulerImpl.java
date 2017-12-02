@@ -48,7 +48,7 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 	private LogicalClock logicalClock;
 	private RemoteGridScheduler stub;
-	private Logger logger;
+	private QueuedLogger logger;
 	private Registry registry;
 
 
@@ -59,7 +59,7 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 
 		// TODO: probably want to write this to a file instead
-		logger = new Logger(System.out);
+		logger = new QueuedLogger(System.out);
 
 
 
@@ -150,7 +150,7 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 
 	@Override
-	public boolean scheduleJob(Job job, RemoteResourceManager source) throws RemoteException {
+	public boolean offloadJob(Job job, RemoteResourceManager source) throws RemoteException {
 		// TODO: Change to take CLient as source i.s.o RM?
 		// TODO: Implement
 		return false;

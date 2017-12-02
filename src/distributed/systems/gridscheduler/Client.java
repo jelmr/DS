@@ -105,7 +105,6 @@ public class Client implements RemoteClient {
 
 		// Used to implement round-robin for the resource managers
 		int resourceManagerIndex = 0;
-		int numResourceManagers = this.resourceManagers.size();
 
 		for (int i = 0; i< this.numberOfJobs; i++) {
 
@@ -116,7 +115,7 @@ public class Client implements RemoteClient {
 			long duration = this.minimumJobDuration + (int) (Math.random() * (this.maximumJobDuration - this.minimumJobDuration));
 			Job job = new Job(duration, jobId, null, this.getStub(), this.name);
 
-			resourceManagerIndex = scheduleJob(resourceManagerIndex, numResourceManagers, startResourceManagerIndex, jobId, job);
+			resourceManagerIndex = scheduleJob(resourceManagerIndex, startResourceManagerIndex, jobId, job);
 
 			try {
 				// Sleep a while before creating a new job
@@ -129,7 +128,12 @@ public class Client implements RemoteClient {
 	}
 
 
-	private int scheduleJob(int resourceManagerIndex, int numResourceManagers, int startResourceManagerIndex, String jobId, Job job) {
+	private int scheduleJob(int resourceManagerIndex, int startResourceManagerIndex, String jobId, Job job) {
+		int numResourceManagers = this.resourceManagers.size();
+		if (numResourceManagers <= 0) {
+			System.out.printf("No ResourceManagers to send job to...");
+			System.exit(1);
+		}
 		boolean scheduledJob = false;
 		do {
 			Named<RemoteResourceManager> namedrrm = this.resourceManagers.get(resourceManagerIndex % numResourceManagers);

@@ -1,6 +1,10 @@
 package distributed.systems.gridscheduler.model;
 
+import distributed.systems.gridscheduler.Logger;
+import distributed.systems.gridscheduler.remote.RemoteResourceManager;
+import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -15,22 +19,31 @@ public class Node {
 	private Job runningJob = null;
 	private long startTime;
 
-	private ArrayList<INodeEventHandler> handlers;
+	private String name;
+	private List<RemoteResourceManager> handlers;
 
 	/**
 	 * Constructs a new Node object.
+	 * @param name
 	 */
-	public Node() {
-		status = NodeStatus.Idle;
-		handlers = new ArrayList<>();
+	public Node(String name) {
+		this.name = name;
+		this.status = NodeStatus.Idle;
+		this.handlers = new ArrayList<>();
 	}
+
+
+	public String getName() {
+		return name;
+	}
+
 
 	/**
 	 * Add a node event handler to this node.
 	 * @see INodeEventHandler
 	 * @param handler event handler, can't be null
 	 */
-	public void addNodeEventHandler(INodeEventHandler handler) {
+	public void addNodeEventHandler(RemoteResourceManager handler) {
 
 		// precondition
 		assert(handler != null);
@@ -59,6 +72,7 @@ public class Node {
 
 		runningJob = job;
 		runningJob.setStatus(JobStatus.Running);
+
 		startTime = System.currentTimeMillis();
 
 		status = NodeStatus.Busy;
@@ -78,8 +92,12 @@ public class Node {
 				runningJob.setStatus(JobStatus.Done);
 
 				// fire event handler
-				for (INodeEventHandler handler : handlers)
-					handler.jobDone(runningJob);
+				for (RemoteResourceManager handler : handlers)
+					try {
+						handler.jobDone(runningJob);
+					} catch (RemoteException ignored) {
+						// TODO: Do something?
+					}
 
 				// set node status
 				runningJob = null;
