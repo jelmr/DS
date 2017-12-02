@@ -3,7 +3,6 @@ package distributed.systems.gridscheduler;
 import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
-import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -95,22 +94,20 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 		String name = this.getName();
 
 		registry = LocateRegistry.createRegistry(REGISTRY_PORT);
-		this.logEvent(new Event.GenericEvent(this.logicalClock, "Started registry on port %d.", REGISTRY_PORT));
+
+		// TODO: Get proper IP instead of localhost
+		String registryHost = "127.0.0.1";
+		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.REGISTRY_START, registryHost, REGISTRY_PORT));
 
 
 		try {
 			RemoteGridScheduler rgs = this.getStub();
 			Registry registry = LocateRegistry.getRegistry();
-			registry.bind(name, rgs);
-			this.logEvent(new Event.GenericEvent(this.logicalClock, "Started up GridScheduler '%s'.", this.getName()));
+			registry.rebind(name, rgs);
+			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_REGISTERED_REGISTRY, this.getName(), registryHost, REGISTRY_PORT));
 
 		} catch (RemoteException e) {
 			e.printStackTrace();
-		} catch (AlreadyBoundException e) {
-
-			this.logEvent(new Event.GenericEvent(this.logicalClock, "The name '%s' is already bound.", this.getName()));
-			this.logger.close();
-			System.exit(1);
 		}
 	}
 
@@ -137,21 +134,25 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	}
 
 	@Override
-	public boolean registerResourceManager(RemoteResourceManager rrm) throws RemoteException {
-		String logLine = String.format("ResourceManager '%s' joined GridScheduler '%s'.", rrm.getName(), this.getName());
-		this.logEvent(new Event.GenericEvent(this.logicalClock, logLine));
+	public boolean registerResourceManager(RemoteResourceManager rrm, String rrmName) throws RemoteException {
+		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_ACCEPTS_RM_REGISTRATION, this.getName(), rrmName));
+
+		// TODO: Implement
 		return true;
 	}
 
 
 	@Override
 	public boolean registerGridScheduler(RemoteGridScheduler rgs) throws RemoteException {
+		// TODO: Implement
 		return false;
 	}
 
 
 	@Override
 	public boolean scheduleJob(Job job, RemoteResourceManager source) throws RemoteException {
+		// TODO: Change to take CLient as source i.s.o RM?
+		// TODO: Implement
 		return false;
 	}
 

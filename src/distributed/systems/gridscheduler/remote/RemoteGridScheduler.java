@@ -33,7 +33,7 @@ public interface RemoteGridScheduler extends Remote {
 		return logSubmitted;
 	}
 
-	boolean registerResourceManager(RemoteResourceManager rrm) throws RemoteException;
+	boolean registerResourceManager(RemoteResourceManager rrm, String rrmName) throws RemoteException;
 
 	boolean registerGridScheduler(RemoteGridScheduler rgs) throws RemoteException;
 

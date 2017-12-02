@@ -1,9 +1,6 @@
 package distributed.systems.gridscheduler;
 
-import distributed.systems.gridscheduler.model.Event;
-import distributed.systems.gridscheduler.model.Job;
-import distributed.systems.gridscheduler.model.LamportsClock;
-import distributed.systems.gridscheduler.model.LogicalClock;
+import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteClient;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.rmi.ConnectException;
@@ -33,7 +30,7 @@ public class Client implements RemoteClient {
 	private RemoteClient stub;
 
 	private ConcurrentHashMap<String, Boolean> jobCompleted;
-	Registry registry;
+	private Registry registry;
 
 
 	public Client() {
@@ -58,7 +55,14 @@ public class Client implements RemoteClient {
 			registry = LocateRegistry.getRegistry(registryHost, registryPort);
 			registry.rebind(name, this.getStub());
 
+
 			lookupResourceManagers(args, 6, registry);
+
+
+			Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_REGISTERED_REGISTRY, this.getName(), registryHost, registryPort);
+			if (!RemoteResourceManager.logEvent(this.resourceManagers, event)) {
+				System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
+			}
 		} catch (ConnectException e) {
 			System.out.printf("Could not connect to RMI registry.\n");
 			System.exit(1);
@@ -88,6 +92,8 @@ public class Client implements RemoteClient {
 		}
 
 		new Client(args).scheduleAllJobs();
+		System.out.printf("REACHED END OF MAIN");
+
 
 	}
 
@@ -132,8 +138,7 @@ public class Client implements RemoteClient {
 
 			try {
 				// Log attempt to schedule job
-				String logLine = String.format("Client '%s' attempting to schedule job id='%s' at resource manager '%s'.", this.getName(), job.getId(), rmName);
-				Event.GenericEvent event = new Event.GenericEvent(this.logicalClock, logLine);
+				Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_JOB_SCHEDULE_ATTEMPT, this.getName(), job.getId(), rmName);
 
 				if (!RemoteResourceManager.logEvent(this.resourceManagers, event)) {
 					System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
@@ -151,8 +156,7 @@ public class Client implements RemoteClient {
 
 			} catch (RemoteException e) {
 				// Incase of RemoteException, assume the RM has crashed. Log this.
-				String logLine = String.format("Client '%s' has detected a crashed ResourceManager.", this.name);
-				Event.GenericEvent event = new Event.GenericEvent(this.logicalClock, logLine);
+				Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_DETECTED_CRASHED_RM, this.name, rmName);
 
 				try {
 					if (!RemoteResourceManager.logEvent(this.resourceManagers, event)) {
@@ -183,9 +187,8 @@ public class Client implements RemoteClient {
 
 		System.out.printf("Received response for job '%s'.\n", job.getId());
 
-		String logLine = String.format("Client '%s' received results for job id='%s'.", this.getName(), job.getId());
-		Event.GenericEvent event = new Event.GenericEvent(this.logicalClock, logLine);
 
+		Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_JOB_DONE, this.getName(), job.getId());
 		if (!RemoteResourceManager.logEvent(this.resourceManagers, event)) {
 			System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
 		}
@@ -195,10 +198,22 @@ public class Client implements RemoteClient {
 
 		if (!this.hasOutStandingJobs()) {
 			try {
+				Event exitEvent = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_EXITING, this.getName());
+				if (!RemoteResourceManager.logEvent(this.resourceManagers, exitEvent)) {
+					System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
+				}
+
+				// TODO: Find out how to make the client properly exit after it has a response for all its jobs.
 				this.registry.unbind(this.name);
 				UnicastRemoteObject.unexportObject(this.stub, true);
+				for (Named<RemoteResourceManager> resourceManager : this.resourceManagers) {
+					UnicastRemoteObject.unexportObject(resourceManager.getObject(), true);
+				}
 				UnicastRemoteObject.unexportObject(this.registry, true);
-				System.exit(0);
+				this.registry = null;
+				this.stub = null;
+				this.resourceManagers.clear();
+				this.resourceManagers = null;
 			} catch (NotBoundException e) {
 				e.printStackTrace();
 			}

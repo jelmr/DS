@@ -5,7 +5,6 @@ import distributed.systems.gridscheduler.remote.RemoteClient;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.io.Serializable;
-import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -30,29 +29,36 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 	private int jobQueueSize;
 	private String name;
 
+	// TODO: Poll nodes for outstanding requests
 	private ConcurrentHashMap<Job, Node> outstandingJobs;
 
-	private RemoteGridScheduler rgs;
+	private Named<RemoteGridScheduler> rgs;
 	private RemoteResourceManager stub;
 	private LogicalClock logicalClock;
 
+	private Logger logger;
 
 
-	public RemoteResourceManagerImpl(String name, int numberOfNodes, RemoteGridScheduler rgs) throws RemoteException {
+
+	public RemoteResourceManagerImpl(String name, int numberOfNodes, Named<RemoteGridScheduler> rgs) throws RemoteException {
+
+		this.logger = new Logger(System.out);
+		this.logicalClock = new LamportsClock();
 
 		this.name = name;
 		this.cluster = new Cluster(name, this, rgs, numberOfNodes);
 
 		this.stub = this.getStub();
 		this.rgs = rgs;
-		this.rgs.registerResourceManager(this.stub);
+		this.rgs.getObject().registerResourceManager(this.stub, name);
+		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.RM_REGISTERS_WITH_GS, this.getName(), this.rgs.getName()));
 
-		this.logicalClock = new LamportsClock();
 
 		this.outstandingJobs = new ConcurrentHashMap<>();
 
 		this.jobQueue = new ConcurrentLinkedQueue<Job>();
 		this.jobQueueSize = cluster.getNodeCount() + MAX_QUEUE_SIZE;
+
 	}
 
 
@@ -77,18 +83,21 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 			Registry register = LocateRegistry.getRegistry(registryHost, registryPort);
 
 			for (int i=4; i<args.length; i++) {
-				String gridSchedulerURL = args[i];
+				String gsName = args[i];
 				try {
-					rgs = (RemoteGridScheduler) register.lookup(gridSchedulerURL);
+					rgs = (RemoteGridScheduler) register.lookup(gsName);
 				} catch (NotBoundException ignored){
 					continue;
 				};
 
 				// If we found a reachable GridScheduler
-				RemoteResourceManagerImpl rm = new RemoteResourceManagerImpl(name, numberOfNodes, rgs);
+				Named<RemoteGridScheduler> namedRgs = new Named<>(gsName, rgs);
+				RemoteResourceManagerImpl rm = new RemoteResourceManagerImpl(name, numberOfNodes, namedRgs);
 
 				RemoteResourceManager rrm = rm.getStub();
 				Registry registry = LocateRegistry.getRegistry();
+
+				rm.logEvent(new Event.TypedEvent(rm.logicalClock, EventType.RM_REGISTERED_REGISTRY, rm.getName(), registryHost, registryPort));
 				registry.rebind(name, rrm);
 
 				// TODO :Stop termination
@@ -138,12 +147,11 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 	@Override
 	public boolean addJob(Job job) throws RemoteException {
-		String logLine = String.format("ResourceManager '%s' received request to process job id='%s' with duration=%d from '%s'.", this.getName(), job.getId(), job.getDuration(), job.getIssueingClientName());
-		this.rgs.logEvent(new Event.GenericEvent(this.logicalClock, logLine));
+		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.RM_RECEIVED_JOB_REQUEST, this.getName(), job.getId(), job.getDuration(), job.getIssueingClientName()));
 
 
 		if (jobQueue.size() >= jobQueueSize) { // if the jobqueue is full, offload the job to the grid scheduler
-			this.rgs.scheduleJob(job, this.stub);
+			this.rgs.getObject().scheduleJob(job, this.stub);
 
 		} else { // otherwise store it in the local queue
 			jobQueue.add(job);
@@ -207,7 +215,8 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 	@Override
 	public boolean logEvent(Event e) throws RemoteException {
-		return this.rgs.logEvent(e);
+		this.logger.log(e);
+		return this.rgs.getObject().logEvent(e);
 	}
 
 

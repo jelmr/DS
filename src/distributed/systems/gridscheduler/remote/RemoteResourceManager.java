@@ -16,6 +16,11 @@ public interface RemoteResourceManager extends Remote {
 
 	static boolean logEvent(List<Named<RemoteResourceManager>> resourceManagers, Event e) throws RemoteException {
 
+		if (resourceManagers.size() < 1) {
+			System.out.printf("No ResourceManagers to log to.");
+			return false;
+		}
+
 		boolean logSubmitted = false;
 		int resourceManagerIndex = 0;
 		int numResourceManagers = resourceManagers.size();

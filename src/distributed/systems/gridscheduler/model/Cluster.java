@@ -1,5 +1,6 @@
 package distributed.systems.gridscheduler.model;
 
+import distributed.systems.gridscheduler.Named;
 import distributed.systems.gridscheduler.RemoteResourceManagerImpl;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
@@ -39,7 +40,7 @@ public class Cluster implements Runnable {
 	 * @param name the name of this cluster
 	 * @param nodeCount the number of nodes in this cluster
 	 */
-	public Cluster(String name, RemoteResourceManagerImpl rrm, RemoteGridScheduler rgs, int nodeCount) {
+	public Cluster(String name, RemoteResourceManagerImpl rrm, Named<RemoteGridScheduler> rgs, int nodeCount) {
 		// Preconditions
 		assert(name != null) : "parameter 'name' cannot be null";
 		assert(rgs != null) : "parameter 'gridSchedulerURL' cannot be null";
@@ -49,7 +50,7 @@ public class Cluster implements Runnable {
 		this.url = name;
 		this.rrm = rrm;
 
-		nodes = new ArrayList<Node>(nodeCount);
+		nodes = new ArrayList<>(nodeCount);
 		
 
 

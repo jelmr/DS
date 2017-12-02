@@ -19,7 +19,7 @@ public abstract class Event implements Serializable{
 
 	public abstract String getLogString();
 
-	public static class GenericEvent extends Event{
+	/*public static class GenericEvent extends Event{
 
 		private String s;
 
@@ -35,38 +35,29 @@ public abstract class Event implements Serializable{
 			return s;
 		}
 	}
-
-
-	// TODO: Perhaps make type safe Events.
-	/*
-	public abstract class ResourceManager extends Event {
-
-		distributed.systems.gridscheduler.model.ResourceManager rm;
-
-
-		public ResourceManager(distributed.systems.gridscheduler.model.ResourceManager rm) {
-			this.rm = rm;
-		}
-
-		public class ReceivedJob extends ResourceManager {
-
-			Job job;
-
-			public ReceivedJob(distributed.systems.gridscheduler.model.ResourceManager rm, Job job) {
-				super(rm);
-				this.job = job;
-			}
-
-
-			@Override
-			String getLogString() {
-				return String.format("Resource Manager %s received a job with ID=%d\n", rm.getName(), job.getId());
-			}
-
-		}
-
-	}
 	*/
+
+
+	// TODO: Replace Event by TypedEvent?
+	public static class TypedEvent extends Event {
+
+		private EventType type;
+		private Object[] args;
+
+
+		public TypedEvent(LogicalClock timestamp, EventType type, Object... args) {
+			this.timestamp = timestamp;
+			this.type = type;
+			this.args = args;
+
+		}
+
+
+		@Override
+		public String getLogString() {
+			return String.format(type.getFormatString(), this.args);
+		}
+	}
 
 
 }
