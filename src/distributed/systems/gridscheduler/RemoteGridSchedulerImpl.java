@@ -4,13 +4,13 @@ import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteLogger;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
+import java.rmi.ConnectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -43,9 +43,9 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 
 	// TODO: Remove this redundancy with the above 2 hashmaps
-	private List<Named<RemoteResourceManager>> registeredResourceManagers;
+	private final ConcurrentLinkedQueue<Named<RemoteResourceManager>> registeredResourceManagers;
 
-	private List<Named<RemoteGridScheduler>> registeredGridSchedulers;
+	private final ConcurrentLinkedQueue<Named<RemoteGridScheduler>> registeredGridSchedulers;
 
 
 
@@ -84,8 +84,8 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 		this.jobQueue = new ConcurrentLinkedQueue<>();
 		this.subscribedLoggers = new ConcurrentLinkedQueue<>();
 
-		this.registeredGridSchedulers = new ArrayList<>();
-		this.registeredResourceManagers = new ArrayList<>();
+		this.registeredGridSchedulers = new ConcurrentLinkedQueue<>();
+		this.registeredResourceManagers = new ConcurrentLinkedQueue<>();
 
 
 		// start the polling thread
@@ -98,31 +98,71 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	public static void main(String[] args) throws RemoteException {
 
 
-		if (args.length < 1) {
-			System.out.printf("Usage: gradle gs  -Pargv=\"['<clusterUrl>']\"");
+		if (args.length < 3) {
+			System.out.printf("Usage: gradle gs  -Pargv=\"['<name>', '<registryHost>', '<registryPort>' [, '<peerGsName1>, ... ,'<peerGsNameN>']]\"");
 			System.exit(1);
 		}
 
-		String url = args[0];
-		new RemoteGridSchedulerImpl(url).start();
+		String name = args[0];
+		new RemoteGridSchedulerImpl(name).start(args);
 	}
 
 
-	private void start() throws RemoteException {
+	private void start(String[] args) throws RemoteException {
 		String name = this.getName();
 
-		registry = LocateRegistry.createRegistry(REGISTRY_PORT);
 
-		// TODO: Get proper IP instead of localhost
-		String registryHost = "127.0.0.1";
-		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.REGISTRY_START, registryHost, REGISTRY_PORT));
+		String registryHost = args[1];
+		int registryPort = Integer.parseInt(args[2]);
 
 
 		try {
+			// Register self in registry
 			RemoteGridScheduler rgs = this.getStub();
-			Registry registry = LocateRegistry.getRegistry();
+			Registry registry = LocateRegistry.getRegistry(registryHost, registryPort);
 			registry.rebind(name, rgs);
 			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_REGISTERED_REGISTRY, this.getName(), registryHost, REGISTRY_PORT));
+
+
+			// Connect to peer GS, add them all to registeredGridScheduler queue.
+			for (int i = 3; i < args.length; i++) {
+				String peerGsName = args[i];
+				try {
+					RemoteGridScheduler peerGs = (RemoteGridScheduler) registry.lookup(peerGsName);
+					Queue<Named<RemoteGridScheduler>> gridSchedulers = peerGs.getGridSchedulers(this.getName());
+
+					synchronized (this.registeredGridSchedulers) {
+						Named<RemoteGridScheduler> e = new Named<>(peerGsName, peerGs);
+						if (!this.registeredGridSchedulers.contains(e)) {
+							this.registeredGridSchedulers.add(e);
+						}
+
+						for (Named<RemoteGridScheduler> gridScheduler : gridSchedulers) {
+							if (!this.registeredGridSchedulers.contains(gridScheduler)) {
+								this.registeredGridSchedulers.add(gridScheduler);
+							}
+						}
+					}
+				} catch (NotBoundException | ConnectException e) {
+					// TODO: Exit or operate solo?
+				}
+			}
+
+			// Register all found GS as peers.
+			for (Named<RemoteGridScheduler> registeredGridScheduler : this.registeredGridSchedulers) {
+				if (!registeredGridScheduler.getName().equals(this.name)) {
+
+					try {
+						registeredGridScheduler.getObject().registerGridScheduler(this.getStub(), this.getName());
+					} catch (java.rmi.ConnectException e) {
+						// This host is apparantly dead, remove it
+						this.registeredGridSchedulers.remove(registeredGridScheduler);
+					}
+				}
+			}
+
+
+
 
 		} catch (RemoteException e) {
 			e.printStackTrace();
@@ -140,8 +180,9 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	}
 
 	public RemoteResourceManager getResourceManager(String name) throws RemoteException{
-		if (this.resourceManagers.contains(name)) {
-			return this.resourceManagers.get(name);
+		RemoteResourceManager rrm = this.resourceManagers.get(name);
+		if (rrm != null) {
+			return rrm;
 		} else {
 			try {
 				return (RemoteResourceManager) this.registry.lookup(name);
@@ -168,7 +209,13 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_ACCEPTS_GS_REGISTRATION, this.getName(), rgsName));
 
 		// TODO: Need to broadcast to any other servers?
-		this.registeredGridSchedulers.add(new Named<>(rgsName, rgs));
+		synchronized (this.registeredGridSchedulers) {
+			Named<RemoteGridScheduler> e = new Named<>(rgsName, rgs);
+			if (this.registeredGridSchedulers.contains(e)){
+				this.registeredGridSchedulers.remove(e);
+			}
+			this.registeredGridSchedulers.add(e);
+		}
 		return true;
 	}
 
@@ -247,14 +294,14 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 
 	@Override
-	public List<Named<RemoteGridScheduler>> getGridSchedulers(String name) throws RemoteException {
+	public Queue<Named<RemoteGridScheduler>> getGridSchedulers(String name) throws RemoteException {
 		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_SEND_LIST_GS, this.name, name));
 		return this.registeredGridSchedulers;
 	}
 
 
 	@Override
-	public List<Named<RemoteResourceManager>> getResourceManagers(String name) throws RemoteException {
+	public Queue<Named<RemoteResourceManager>> getResourceManagers(String name) throws RemoteException {
 		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_SEND_LIST_RM, this.name, name));
 		return this.registeredResourceManagers;
 	}
@@ -290,6 +337,7 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	private void removeResourceManager(String name) {
 		this.resourceManagerLoad.remove(name);
 		this.resourceManagers.remove(name);
+		this.registeredResourceManagers.remove(new Named<RemoteResourceManager>(name, null));
 	}
 
 	@Override

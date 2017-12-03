@@ -6,6 +6,7 @@ import distributed.systems.gridscheduler.model.Job;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
+import java.util.Queue;
 
 
 /**
@@ -96,7 +97,7 @@ public interface RemoteGridScheduler extends Remote, RemoteLogger {
 	 * @throws RemoteException
 	 * @param name Name of the requesting host (for logging purposes).
 	 */
-	List<Named<RemoteGridScheduler>> getGridSchedulers(String name) throws RemoteException;
+	Queue<Named<RemoteGridScheduler>> getGridSchedulers(String name) throws RemoteException;
 
 	/**
 	 * Get all ResourceManagers that are registered with this GridScheduler.
@@ -104,6 +105,6 @@ public interface RemoteGridScheduler extends Remote, RemoteLogger {
 	 * @throws RemoteException
 	 * @param name Name of the requesting host (for logging purposes).
 	 */
-	List<Named<RemoteResourceManager>> getResourceManagers(String name) throws RemoteException;
+	Queue<Named<RemoteResourceManager>> getResourceManagers(String name) throws RemoteException;
 
 }
