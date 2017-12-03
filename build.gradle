@@ -57,3 +57,12 @@ task frontend(type: JavaExec) {
         args = Eval.me(argv)
     }
 }
+
+task registry(type: JavaExec) {
+    main = 'distributed.systems.gridscheduler.RegistryHost'
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("argv") ) {
+        args = Eval.me(argv)
+    }
+}

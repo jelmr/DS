@@ -1,27 +1,46 @@
-To start a Cluster:
-    gradle rm -Pargv="['<rmName>', '<numNodes>', '<registryHost>', '<registryPort>', '<gsName>']"
-
-    e.g.:
-    $ gradle rm -Pargv="['rm1', '10', '127.0.0.1', '1099', 'gs1']"
-
+To start a Registry:
+    gradle registry -Pargv="['<port>']"
 
 To start a Grid Scheduler:
-    gradle gs -Pargv="['<gsName>']"
-
-    e.g.:
-    $ gradle gs -Pargv="['gs1']"
-
-
-To start a Client:
-    gradle client -Pargv="['<name>', '<numJobs>', 'minJobDuration', 'maxJobDuration', '<registryHost>', '<registryPort>', '<rmName>']"
-
-    e.g.:
-    $ gradle client -Pargv="['client1', '5', '5000', '14000', '127.0.0.1','1099', 'rm1']"
-
-
+    gradle gs -Pargv="['<gsName>', '<registryHost>', '<registryPort>' [, '<peerGs1>', ... , <peerGsN>']]"
 
 To start a Frontend:
     gradle frontend -Pargv="['<name>', '<registryHost>', '<registryPort>', '<gridScheduler>']"
 
-    e.g.:
-    $gradle frontend -Pargv="['frontend1', '127.0.0.1', '1099', 'gs1']"
+To start a RM / Cluster:
+    gradle rm -Pargv="['<rmName>', '<numNodes>', '<registryHost>', '<registryPort>', '<gsName>']"
+
+To start a Client:
+    gradle client -Pargv="['<name>', '<numJobs>', 'minJobDuration', 'maxJobDuration', '<registryHost>', '<registryPort>', '<rmName>']"
+
+
+
+
+
+For example, starting up the system could look like this:
+
+    # Start a registry
+    $ gradle registry -Pargv="['1099']"
+
+    # Start the first GS. Note this one takes no further GS names.
+    $ gradle gs -Pargv="['gs1', '127.0.0.1', '1099']"
+
+    # Start other GS. You have to provide at least one name of a GS, from which all other GSs can be requested.
+    $ gradle gs -Pargv="['gs2', '127.0.0.1', '1099', 'gs1']"
+    $ gradle gs -Pargv="['gs3', '127.0.0.1', '1099', 'gs1']"
+
+    # Start a frontend that will monitor all events logged by any of the GSs. 
+    $ gradle frontend -Pargv="['frontend1', '127.0.0.1', '1099', 'gs1']"
+
+    # Start a number of RMs
+    $ gradle rm -Pargv="['rm1', '10', '127.0.0.1', '1099', 'gs1']"
+    $ gradle rm -Pargv="['rm2', '10', '127.0.0.1', '1099', 'gs1']"
+    $ gradle rm -Pargv="['rm3', '10', '127.0.0.1', '1099', 'gs2']"
+    $ gradle rm -Pargv="['rm4', '10', '127.0.0.1', '1099', 'gs3']"
+
+    # Start a number of clients
+    $ gradle client -Pargv="['client1', '5', '5000', '14000', '127.0.0.1','1099', 'rm1']"
+    $ gradle client -Pargv="['client2', '5', '5000', '14000', '127.0.0.1','1099', 'rm2']"
+    $ gradle client -Pargv="['client3', '5', '5000', '14000', '127.0.0.1','1099', 'rm3']"
+    $ gradle client -Pargv="['client4', '5', '5000', '14000', '127.0.0.1','1099', 'rm4']"
+    $ gradle client -Pargv="['client5', '5', '5000', '14000', '127.0.0.1','1099', 'rm4']"
