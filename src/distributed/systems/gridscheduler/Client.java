@@ -117,14 +117,6 @@ public class Client implements RemoteClient {
         }
 
         stillScheduling = false;
-
-        if (!hasOutStandingJobs()) {
-            try {
-                closeClientRMI();
-            } catch (NotBoundException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     private int scheduleJob(int resourceManagerIndex, int startResourceManagerIndex, String jobId, Job job) {
@@ -178,7 +170,7 @@ public class Client implements RemoteClient {
 
 
     public boolean hasOutStandingJobs() {
-        return jobCompleted.size() > 0 && !stillScheduling;
+        return jobCompleted.size() > 0 || stillScheduling;
     }
 
     @Override
