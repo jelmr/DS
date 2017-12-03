@@ -1,0 +1,9 @@
+TODO:
+
+1) Generate interesting/realistic jobs so that we can perform experiments. The best way to do this would be to create a copy of Client.java that can process an input from the Grid Workloads Archive [5] (see assignment PDF). Should not be too much work, counts as a bonus, as saves us work from having to setup an experiment ourselves.
+
+2) Create a GUI. I created a Frontend.java class that subscribes itself to all Events being logged to any of the GridSchedulers. This should be modified so that it uses these events to generate some sort of GUI. Easiest would probably be to use the GUI that was already in the skeleton.
+
+3) All events already store a LogicalClock timestamp, and all Remotes have a LogicalClock. These clocks currently always stay at time=0, they should be updated when any event occurs and when communicating with any other host. See https://en.wikipedia.org/wiki/Lamport_timestamps . This is important to be able to log events in the proper order.
+
+4) Finish the basic requirements, such as job handoffs across clusters, logging everything on two GridSchedulers instead of one, implementing fault tolerance.
