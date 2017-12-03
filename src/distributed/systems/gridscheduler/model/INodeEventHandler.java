@@ -1,6 +1,6 @@
 package distributed.systems.gridscheduler.model;
 
-import distributed.systems.gridscheduler.Logger;
+import distributed.systems.gridscheduler.remote.RemoteLogger;
 
 
 /**
@@ -11,7 +11,7 @@ import distributed.systems.gridscheduler.Logger;
  * @author Niels Brouwers
  *
  */
-public interface INodeEventHandler extends Logger{
+public interface INodeEventHandler extends RemoteLogger {
 
 	// notify the completion of a job
 

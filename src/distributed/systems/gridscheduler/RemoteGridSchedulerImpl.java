@@ -2,12 +2,15 @@ package distributed.systems.gridscheduler;
 
 import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
+import distributed.systems.gridscheduler.remote.RemoteLogger;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -29,12 +32,21 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	private final String name;
 
 
+
+
 	// TODO: Merge these two into one HashMap? Careful not to rely on rm.getName(), since that is remote operation.
 	// a hashmap linking each resource manager to an estimated load
 	private ConcurrentHashMap<String, Integer> resourceManagerLoad;
 
 	// name -> stub
 	private ConcurrentHashMap<String, RemoteResourceManager> resourceManagers;
+
+
+	// TODO: Remove this redundancy with the above 2 hashmaps
+	private List<Named<RemoteResourceManager>> registeredResourceManagers;
+
+	private List<Named<RemoteGridScheduler>> registeredGridSchedulers;
+
 
 
 
@@ -45,6 +57,8 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	private boolean running;
 
 
+
+	private ConcurrentLinkedQueue<Named<RemoteLogger>> subscribedLoggers;
 
 	private LogicalClock logicalClock;
 	private RemoteGridScheduler stub;
@@ -68,6 +82,10 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 		this.resourceManagerLoad = new ConcurrentHashMap<>();
 		this.resourceManagers = new ConcurrentHashMap<>();
 		this.jobQueue = new ConcurrentLinkedQueue<>();
+		this.subscribedLoggers = new ConcurrentLinkedQueue<>();
+
+		this.registeredGridSchedulers = new ArrayList<>();
+		this.registeredResourceManagers = new ArrayList<>();
 
 
 		// start the polling thread
@@ -137,28 +155,78 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	public boolean registerResourceManager(RemoteResourceManager rrm, String rrmName) throws RemoteException {
 		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_ACCEPTS_RM_REGISTRATION, this.getName(), rrmName));
 
-		// TODO: Implement
+		// TODO: Need to broadcast to any other servers?
+		this.registeredResourceManagers.add(new Named<>(rrmName, rrm));
+		this.resourceManagers.put(rrmName, rrm);
+		this.resourceManagerLoad.put(rrmName, 0);
 		return true;
 	}
 
 
 	@Override
-	public boolean registerGridScheduler(RemoteGridScheduler rgs) throws RemoteException {
-		// TODO: Implement
-		return false;
+	public boolean registerGridScheduler(RemoteGridScheduler rgs, String rgsName) throws RemoteException {
+		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_ACCEPTS_GS_REGISTRATION, this.getName(), rgsName));
+
+		// TODO: Need to broadcast to any other servers?
+		this.registeredGridSchedulers.add(new Named<>(rgsName, rgs));
+		return true;
 	}
 
 
 	@Override
-	public boolean offloadJob(Job job, RemoteResourceManager source) throws RemoteException {
+	public boolean offloadJob(Job job) throws RemoteException {
 		// TODO: Change to take CLient as source i.s.o RM?
-		// TODO: Implement
-		return false;
+		String minLoadRM = getLeastLoadedResourceManager();
+		RemoteResourceManager rrm = this.resourceManagers.get(minLoadRM);
+		rrm.addJob(job);
+
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+
+		return true;
+	}
+
+
+	private String getLeastLoadedResourceManager() {
+		int minLoad = Integer.MAX_VALUE;
+		String minLoadRM = null;
+		for (String rmName : this.resourceManagerLoad.keySet()) {
+			int load = this.resourceManagerLoad.get(rmName);
+
+			if (load <= minLoad) {
+				minLoad = load;
+				minLoadRM = rmName;
+
+			}
+		}
+		return minLoadRM;
 	}
 
 
 	@Override
 	public boolean logEvent(Event e) {
+		for (Named<RemoteLogger> subscribedLogger : this.subscribedLoggers) {
+			try {
+				subscribedLogger.getObject().logEvent(e);
+			} catch (RemoteException e1) {
+				// If a RemoteException occured, assume the subscriber logger has exited and remove it from the list.
+				subscribedLoggers.remove(subscribedLogger);
+			}
+		}
 		this.logger.log(e);
 		return true;
 	}
@@ -168,6 +236,30 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	public String getName() throws RemoteException {
 		return this.name;
 	}
+
+
+	@Override
+	public boolean subscribeToEvents(RemoteLogger rl, String rlName) throws RemoteException {
+		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_ACCEPTS_FRONTEND_SUBSCRIPTION, this.name, rlName));
+		this.subscribedLoggers.add(new Named<>(rlName, rl));
+		return true;
+	}
+
+
+	@Override
+	public List<Named<RemoteGridScheduler>> getGridSchedulers(String name) throws RemoteException {
+		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_SEND_LIST_GS, this.name, name));
+		return this.registeredGridSchedulers;
+	}
+
+
+	@Override
+	public List<Named<RemoteResourceManager>> getResourceManagers(String name) throws RemoteException {
+		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_SEND_LIST_RM, this.name, name));
+		return this.registeredResourceManagers;
+	}
+
+
 
 	/**
 	 * Gets the number of jobs that are waiting for completion.

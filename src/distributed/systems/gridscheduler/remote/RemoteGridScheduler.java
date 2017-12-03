@@ -1,6 +1,7 @@
 package distributed.systems.gridscheduler.remote;
 
 import distributed.systems.gridscheduler.Named;
+import distributed.systems.gridscheduler.model.Event;
 import distributed.systems.gridscheduler.model.Job;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -12,6 +13,38 @@ import java.util.List;
  *         Date: 29/11/2017
  */
 public interface RemoteGridScheduler extends Remote, RemoteLogger {
+
+	// TODO: Merge this with Logger logEvent
+	/**
+	 * Attempt to log Event e to any of the RemoteLoggers in the list loggers. Will try them in order until it
+	 * manages to succesfully log the event.
+	 * @param loggers list of all loggers
+	 * @param e the event to be logged
+	 * @return true if the Event was succesfully logged, false otherwise @return
+	 * @throws RemoteException
+	 */
+	static boolean logEvent(List<Named<RemoteGridScheduler>> loggers, Event e) throws RemoteException {
+
+		if (loggers.size() <= 0) {
+			System.out.printf("No loggers found.\n");
+			return false;
+		}
+		boolean logSubmitted = false;
+		int loggerIndex = 0;
+		int numLoggers = loggers.size();
+
+		do {
+			try {
+				RemoteLogger rgs = loggers.get(loggerIndex).getObject();
+				rgs.logEvent(e);
+				logSubmitted = true;
+			} catch (RemoteException ignored) {}
+			loggerIndex++;
+		} while (!logSubmitted && loggerIndex < (numLoggers));
+
+
+		return logSubmitted;
+	}
 
 	/**
 	 * Registers a ResourceManager with this GridScheduler, allowing the RM to offload jobs to this GS and vice versa.
@@ -26,20 +59,20 @@ public interface RemoteGridScheduler extends Remote, RemoteLogger {
 	/**
 	 * Registers another GridSchedulers with this GridScheduler, so that these can offload jobs to each other.
 	 * @param rgs The GS to be registed.
+	 * @param rgsName The name of the GridScheduler to register.
 	 * @return true if the GS was succesfully registered, false otherwise.
 	 * @throws RemoteException
 	 */
-	boolean registerGridScheduler(RemoteGridScheduler rgs) throws RemoteException;
+	boolean registerGridScheduler(RemoteGridScheduler rgs, String rgsName) throws RemoteException;
 
 	/**
 	 * Offload a Job to this GridScheduler. The issueing ResourceManager is no longer responsible for this Job. The
 	 * GridScheduler will make sure it gets completed and that the issueing Client gets contacted with the results.
 	 * @param job the job to be offlaoded
-	 * @param source the RM that is attempting to offload the Job.
 	 * @return true if the Job was succesfully offloaded, false otherwise.
 	 * @throws RemoteException
 	 */
-	boolean offloadJob(Job job, RemoteResourceManager source) throws RemoteException;
+	boolean offloadJob(Job job) throws RemoteException;
 
 	/**
 	 * Get the name of this GridScheduler.
@@ -61,14 +94,16 @@ public interface RemoteGridScheduler extends Remote, RemoteLogger {
 	 * Get all GridSchedulers in the Grid.
 	 * @return List of named GridSchedulers.
 	 * @throws RemoteException
+	 * @param name Name of the requesting host (for logging purposes).
 	 */
-	List<Named<RemoteGridScheduler>> getGridSchedulers() throws RemoteException;
+	List<Named<RemoteGridScheduler>> getGridSchedulers(String name) throws RemoteException;
 
 	/**
 	 * Get all ResourceManagers that are registered with this GridScheduler.
 	 * @return List of named ResourceManagers.
 	 * @throws RemoteException
+	 * @param name Name of the requesting host (for logging purposes).
 	 */
-	List<Named<RemoteResourceManager>> getResourceManagers() throws RemoteException;
+	List<Named<RemoteResourceManager>> getResourceManagers(String name) throws RemoteException;
 
 }

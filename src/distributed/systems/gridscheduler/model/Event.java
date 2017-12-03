@@ -52,6 +52,13 @@ public abstract class Event implements Serializable{
 
 		}
 
+		public EventType getType() {
+			return this.type;
+		}
+
+		public Object[] getArgs() {
+			return this.args;
+		}
 
 		@Override
 		public String getLogString() {

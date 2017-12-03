@@ -25,6 +25,11 @@ public enum EventType {
 	CLIENT_REGISTERED_REGISTRY("Client '%s' has registered itself with the registry at %s:%d."),
 	RM_REGISTERED_REGISTRY("ResourceManager '%s' has registered itself with the registry at %s:%d."),
 	GS_REGISTERED_REGISTRY("GridScheduler '%s' has registered itself with the registry at %s:%d."),
+	FRONTEND_REGISTERED_REGISTRY("Frontend '%s' has registered itself with the registry at %s:%d."),
+
+
+
+
 
 
 	/**
@@ -43,8 +48,42 @@ public enum EventType {
 	 */
 	RM_REGISTERS_WITH_GS("ResourceManager '%s' has requested to join subgrid of GridScheduler '%s'."),
 
+	/**
+	 * Issued when a Frontend attempts to subscribe to the events of a GridScheduler.
+	 * Format args:
+	 * 1: (String) Source Frontend name
+	 * 2: (String) Target GS name.
+	 */
+	FRONTEND_SUBSCRIBE_TO_EVENTS_ATTEMPT("Frontend '%s' attempts to subscribe to Events of GridScheduler '%s'."),
+
+	/**
+	 * Issued when a GS accepts a Frontends request to subscribe to its events.
+	 * Format args:
+	 * 1: (String) GS name.
+	 * 2: (String) Frontend name.
+	 */
+	GS_ACCEPTS_FRONTEND_SUBSCRIPTION("GridScheduler '%s' has subscribed Frontend '%s' to its Events."),
+
 	RM_REGISTERED_AS_DUPLICATE(""),
-	GS_REGISTERED_WITH_GS(""),
+
+	/**
+	 * Issued when a GS accepts another GS as its peer.
+	 * Format args:
+	 * 1: (String) Target GS Name.
+	 * 2: (String) Source RM name.
+	 */
+	GS_ACCEPTS_GS_REGISTRATION("GridScheduler '%s' accepts GridScheduler '%s' request to become its peer."),
+
+	/**
+	 * Issued when a GS sends a list of all GS/RM to another host.
+	 * Format args:
+	 * 1: (String) Source GS name
+	 * 2: (String) Target host
+	 */
+	GS_SEND_LIST_GS("GridScheduler '%s' sending List of all registered GridSchedulers to '%s'."),
+	GS_SEND_LIST_RM("GridScheduler '%s' sending List of all registered ResourceManagers to '%s'."),
+
+
 
 	/**
 	 * Issued when a Client attempts to schedule a job with a RM.
@@ -119,6 +158,11 @@ public enum EventType {
 
 
 
+	/**
+	 * Issued when a Client exits the system.
+	 * Format args:
+	 * 1: (String) Exiting client name
+	 */
 	CLIENT_EXITING("Client '%s' is exiting the system.");
 
 

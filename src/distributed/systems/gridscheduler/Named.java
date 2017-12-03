@@ -1,10 +1,13 @@
 package distributed.systems.gridscheduler;
 
+import java.io.Serializable;
+
+
 /**
  * @author Jelmer Mulder
  *         Date: 01/12/2017
  */
-public class Named<E> {
+public class Named<E> implements Serializable {
 
 	private E stub;
 	private String name;

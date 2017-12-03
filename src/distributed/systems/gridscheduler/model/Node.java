@@ -1,6 +1,5 @@
 package distributed.systems.gridscheduler.model;
 
-import distributed.systems.gridscheduler.Logger;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.rmi.RemoteException;
 import java.util.ArrayList;

@@ -33,15 +33,10 @@ public class Client implements RemoteClient {
 	private Registry registry;
 
 
-	public Client() {
+	private Client(String[] args) {
 		this.resourceManagers = new ArrayList<>();
 		this.logicalClock = new LamportsClock();
 		this.jobCompleted = new ConcurrentHashMap<>();
-	}
-
-
-	private Client(String[] args) {
-		this();
 
 		this.name = args[0];
 		this.numberOfJobs = Integer.parseInt(args[1]);
@@ -92,7 +87,6 @@ public class Client implements RemoteClient {
 		}
 
 		new Client(args).scheduleAllJobs();
-		System.out.printf("REACHED END OF MAIN");
 
 
 	}

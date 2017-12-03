@@ -152,7 +152,7 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 		if (jobQueue.size() >= jobQueueSize) { // if the jobqueue is full, offload the job to the grid scheduler
 			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.RM_OFFLOAD_TO_GS_ATTEMPT, this.getName(), job.getId(), this.rgs.getName()));
-			this.rgs.getObject().offloadJob(job, this.stub);
+			this.rgs.getObject().offloadJob(job);
 
 		} else { // otherwise store it in the local queue
 			jobQueue.add(job);

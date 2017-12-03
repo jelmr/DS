@@ -1,6 +1,7 @@
 package distributed.systems.gridscheduler.remote;
 
 import distributed.systems.gridscheduler.model.Event;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
@@ -9,7 +10,7 @@ import java.util.List;
  * @author Jelmer Mulder
  *         Date: 02/12/2017
  */
-public interface RemoteLogger {
+public interface RemoteLogger extends Remote {
 
 	/**
 	 * Attempt to log Event e to any of the RemoteLoggers in the list loggers. Will try them in order until it
