@@ -17,3 +17,11 @@ To start a Client:
 
     e.g.:
     $ gradle client -Pargv="['client1', '5', '5000', '14000', '127.0.0.1','1099', 'rm1']"
+
+
+
+To start a Frontend:
+    gradle frontend -Pargv="['<name>', '<registryHost>', '<registryPort>', '<gridScheduler>']"
+
+    e.g.:
+    $gradle frontend -Pargv="['frontend1', '127.0.0.1', '1099', 'gs1']"
