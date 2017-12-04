@@ -24,7 +24,10 @@
 hs_err_pid*
 
 .idea/
-Assignment.iml
+*.iml
 out/
 build/
+/gradle
 .gradle
+gradlew
+gradlew.bat
