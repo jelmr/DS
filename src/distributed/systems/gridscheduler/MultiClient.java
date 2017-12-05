@@ -34,6 +34,7 @@ import java.util.regex.Pattern;
 public class MultiClient implements RemoteClient {
     private final static String NAME = "Tim";
     private Map<String, RemoteResourceManager> resourceManagers;
+    private List<Named<RemoteResourceManager>> resourceManagerList; /* redundancy necessary due to interface logging */
     private LogicalClock                       logicalClock;
     private ConcurrentHashMap<String, Boolean> jobCompleted;
 
@@ -45,6 +46,7 @@ public class MultiClient implements RemoteClient {
 
     public MultiClient(String registryHost, int registryPort) {
         this.resourceManagers = new ConcurrentHashMap<>();
+        this.resourceManagerList = new ArrayList<>(); /* we don't care about concurrency */
         this.jobCompleted = new ConcurrentHashMap<>();
 
         this.logicalClock = new LamportsClock();
@@ -73,9 +75,8 @@ public class MultiClient implements RemoteClient {
 
         // Logging response
         Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_JOB_DONE, this.getName(), job.getId());
-        if (!job.getIssueingResourceManager().logEvent(event)) {
+        if (!RemoteResourceManager.logEvent(resourceManagerList, event))
             System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
-        }
 
         // remove from queue and check if there's more to do
         this.jobCompleted.remove(job.getId());
@@ -107,6 +108,7 @@ public class MultiClient implements RemoteClient {
         try {
             RemoteResourceManager rrm = (RemoteResourceManager) registry.lookup(name);
             resourceManagers.put(name, rrm);
+            resourceManagerList.add(new Named<>(name, rrm));
             return rrm;
         } catch (RemoteException | NotBoundException e) {
             System.out.println("Encountered an error or smth");
@@ -128,8 +130,6 @@ public class MultiClient implements RemoteClient {
             String                rrmName = s.getName();
             RemoteResourceManager rrm     = s.getObject();
 
-            job.setIssueingResourceManager(rrm);
-
             Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_JOB_SCHEDULE_ATTEMPT, NAME,
                     job.getId(), rrmName);
 
@@ -146,12 +146,12 @@ public class MultiClient implements RemoteClient {
                 }
             }
             catch (RemoteException e) {
-                continue; // if this one doesn't work, too bad, nexttt.
+                /* if this one doesn't work, too bad, nexttt. */
             }
         }
     }
 
-    public boolean hasOutStandingJobs() {
+    private boolean hasOutStandingJobs() {
         return jobCompleted.size() > 0 || stillScheduling;
     }
 
@@ -163,17 +163,13 @@ public class MultiClient implements RemoteClient {
      */
     private void closeClientRMI() throws RemoteException, NotBoundException {
         Event                              exitEvent = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_EXITING, this.getName());
-        List<Named<RemoteResourceManager>> rm        = new ArrayList<>();
-        for (Map.Entry<String, RemoteResourceManager> entry : this.resourceManagers.entrySet()) {
-            rm.add(new Named<>(entry.getKey(), entry.getValue()));
-        }
 
-        if (!RemoteResourceManager.logEvent(rm, exitEvent))
+        if (!RemoteResourceManager.logEvent(resourceManagerList, exitEvent))
             System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
 
         UnicastRemoteObject.unexportObject(this, true);
 
-        for (Named<RemoteResourceManager> resourceManager : rm)
+        for (Named<RemoteResourceManager> resourceManager : resourceManagerList)
             UnicastRemoteObject.unexportObject(resourceManager.getObject(), true);
 
         UnicastRemoteObject.unexportObject(this.registry, true);
@@ -188,6 +184,8 @@ public class MultiClient implements RemoteClient {
 
 
     /**
+     * Main function this object hinges on.
+     *
      * Parses a Tim configuration file (c), which he defined as:
      * jobId (int) ',' timeInSec (int) ',' comma separated list of resource managers, one of which is chosen (at random)
      * <p>
@@ -199,6 +197,7 @@ public class MultiClient implements RemoteClient {
     private void execConfiguration(String filepath) throws FileNotFoundException {
         Scanner lineScanner = new Scanner(new File(filepath));
         Random  r           = new Random(0xbadcafe);
+
         stillScheduling = true;
 
         while (lineScanner.hasNext()) {
