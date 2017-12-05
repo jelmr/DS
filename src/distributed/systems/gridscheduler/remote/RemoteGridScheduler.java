@@ -107,4 +107,12 @@ public interface RemoteGridScheduler extends Remote, RemoteLogger {
 	 */
 	Queue<Named<RemoteResourceManager>> getResourceManagers(String name) throws RemoteException;
 
+	/**
+	 * Gets the capacity of the RM with the most capacity under this GridScheduler.
+	 * @return the capacity of that RM. The capacity is the amount of free nodes under that RM minus
+	 * 			the amount of queued jobs. This can thus be a negative number.
+	 * @throws RemoteException
+	 */
+	int getHighestCapacityRMCapacity() throws RemoteException;
+
 }

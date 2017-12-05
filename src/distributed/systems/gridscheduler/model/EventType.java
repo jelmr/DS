@@ -104,14 +104,23 @@ public enum EventType {
 	CLIENT_DETECTED_CRASHED_RM("Client '%s' has detected that ResourceManager '%s' has crashed."),
 
 	/**
-	 * Issued when a RM receives a Job request from a Client or a GridScheduler.
+	 * Issued when a RM receives a Job request from a Client.
 	 * Format args:
 	 * 1: (String) Target RM name.
 	 * 2: (String) Job ID
 	 * 3: (Int) Job duration
 	 * 4: (String) Source name
 	 */
-	RM_RECEIVED_JOB_REQUEST("ResourceManager '%s' received a request to process job id='%s' with duration='%d' from '%s'."),
+	RM_RECEIVED_JOB_REQUEST("ResourceManager '%s' received a request to process job id='%s' with duration='%d' from Client '%s'."),
+
+	/**
+	 * Issued when a RM receives a Job offload request from a GridScheduler.
+	 * Format args:
+	 * 1: (String) Target RM name.
+	 * 2: (String) Job ID
+	 * 3: (String) Source name
+	 */
+	RM_RECEIVED_JOB_OFFLOAD_REQUEST("ResourceManager '%s' received a request to process offloaded job id='%s'from GridScheduler '%s'."),
 
 	/**
 	 * Issued when a RM adds a job to its local queue.

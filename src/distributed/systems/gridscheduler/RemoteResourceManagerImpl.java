@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class RemoteResourceManagerImpl implements RemoteResourceManager, Serializable, INodeEventHandler {
 
 
-	public static final int MAX_QUEUE_SIZE = 32;
+	public static final int MAX_QUEUE_SIZE = 4;
 
 	private Cluster cluster;
 	private Queue<Job> jobQueue;
@@ -56,7 +56,7 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 		this.outstandingJobs = new ConcurrentHashMap<>();
 
-		this.jobQueue = new ConcurrentLinkedQueue<Job>();
+		this.jobQueue = new ConcurrentLinkedQueue<>();
 		this.jobQueueSize = cluster.getNodeCount() + MAX_QUEUE_SIZE;
 
 	}
@@ -140,6 +140,15 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 
 	@Override
+	public int getCapacity() throws RemoteException {
+		int numQueuedJobs = this.jobQueue.size();
+		int numFreeNodes = this.cluster.getNumFreeNodes();
+		System.out.printf("My capacity is %d-%d=%d", numFreeNodes, numQueuedJobs, numFreeNodes-numQueuedJobs);
+		return numFreeNodes - numQueuedJobs;
+	}
+
+
+	@Override
 	public boolean registerAsDuplicate(RemoteResourceManager rrm) throws RemoteException {
 		return true;
 	}
@@ -162,6 +171,17 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 		}
 		return true;
 	}
+
+
+	@Override
+	public boolean offloadJob(Job job, String issueingGsName) throws RemoteException {
+		System.out.printf("Has accepted an offload job from %s id=%s\n", issueingGsName, job.getId());
+		jobQueue.add(job);
+		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.RM_RECEIVED_JOB_OFFLOAD_REQUEST, this.getName(), job.getId(), issueingGsName));
+		scheduleJobs();
+		return true;
+	}
+
 
 	/**
 	 * Tries to find a waiting job in the jobqueue.
@@ -218,6 +238,8 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 		}
 		jobQueue.remove(job);
 
+		// Schedule new jobs waiting in the queue
+		this.scheduleJobs();
 	}
 
 
@@ -230,6 +252,7 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 	@Override
 	public String getName() throws RemoteException {
+
 		return this.name;
 	}
 

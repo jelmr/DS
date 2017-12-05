@@ -102,6 +102,23 @@ public class Cluster implements Runnable {
 	public List<Node> getNodes() {
 		return nodes;
 	}
+
+
+	/**
+	 * Get the number of free (idle) nodes in the cluster.
+	 * @return the number of free nodes.
+	 */
+	public int getNumFreeNodes() {
+
+		int count = 0;
+		for (Node node : nodes) {
+			if (node.getStatus() == NodeStatus.Idle) {
+				count++;
+			}
+		}
+
+		return count;
+	}
 	
 	/**
 	 * Finds a free node and returns it. If no free node can be found, the method returns null.

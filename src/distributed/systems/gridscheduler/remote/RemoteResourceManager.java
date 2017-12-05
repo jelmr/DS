@@ -53,13 +53,20 @@ public interface RemoteResourceManager extends Remote, RemoteLogger {
 	 */
 	boolean isAlive() throws RemoteException;
 
-	//TODO: Return it as fraction of busy nodes? As number of free nodes?
+	//TODO: Delete this?
 	/**
 	 * Return the load of this cluster.
 	 * @return the load of this cluster (in number of requests).
 	 * @throws RemoteException
 	 */
 	int getLoad() throws RemoteException;
+
+	/**
+	 * Get the capacity of this RM.
+	 * @return the capacity of this RM. That is, the number of free nodes minus the amount of queued jobs.
+	 * @throws RemoteException
+	 */
+	int getCapacity() throws RemoteException;
 
 	/**
 	 * Register the ResourceManager 'rrm' as a duplicate for this ResourceManager and vice versa. Jobs issued by one RM
@@ -78,6 +85,15 @@ public interface RemoteResourceManager extends Remote, RemoteLogger {
 	 * @throws RemoteException
 	 */
 	boolean addJob(Job job) throws RemoteException;
+
+	/**
+	 * Issue a Job to be processed by this ResourceManager. Since this is an offloaded job, the RM MUST accept.
+	 * @param job the job to be processed
+	 * @param issueingGsName name of the GS issueing this offloaded request
+	 * @return true if the job was succesfully queued, false otherwise.
+	 * @throws RemoteException
+	 */
+	boolean offloadJob(Job job, String issueingGsName) throws RemoteException;
 
 	/**
 	 * Get the name of this ResourceManager

@@ -18,6 +18,7 @@ public class Job implements Serializable {
 	private RemoteResourceManager issueingResourceManager;
 	private RemoteClient issueingClient;
 	private String issueingClientName;
+	private boolean hasBeenOffloaded;
 
 
 
@@ -31,16 +32,17 @@ public class Job implements Serializable {
 		this.issueingClientName = issueingClientName;
 		this.issueingClient = issueingClient;
 		this.issueingResourceManager = issueingResourceManager;
+		this.hasBeenOffloaded = false;
 	}
 
 
-	public RemoteResourceManager getIssueingResourceManager() {
-		return issueingResourceManager;
+	public boolean hasBeenOffloaded() {
+		return hasBeenOffloaded;
 	}
 
 
-	public void setIssueingResourceManager(RemoteResourceManager issueingResourceManager) {
-		this.issueingResourceManager = issueingResourceManager;
+	public void setHasBeenOffloaded(boolean hasBeenOffloaded) {
+		this.hasBeenOffloaded = hasBeenOffloaded;
 	}
 
 

@@ -19,11 +19,18 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author Jelmer Mulder
  *         Date: 29/11/2017
  */
+
+/**
+ * In hind sight, it would have been much nicer to make a wrapper around RemoteGridScheduler and
+ * RemoteResourceManager to perform some caching for us. This would have allowed us to use a
+ * single data-structure to store everything we need to know about these remotes, instead of
+ * spreading this data out over a bunch of separate Queues and HashMaps.
+ */
 public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 	public static final int REGISTRY_PORT = 1099;
-
-
+	public static final int RM_CAPACITY_CACHE_DURATION = 1000;
+	public static final int GS_CAPACITY_CACHE_DURATION = 1000;
 
 	// job queue
 	private ConcurrentLinkedQueue<Job> jobQueue;
@@ -35,8 +42,12 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 
 	// TODO: Merge these two into one HashMap? Careful not to rely on rm.getName(), since that is remote operation.
+	// TODO: delete load?
 	// a hashmap linking each resource manager to an estimated load
 	private ConcurrentHashMap<String, Integer> resourceManagerLoad;
+
+	private ConcurrentHashMap<String, Integer> resourceManagerCapacity;
+	private long lastRMCapacityUpdate;
 
 	// name -> stub
 	private ConcurrentHashMap<String, RemoteResourceManager> resourceManagers;
@@ -47,6 +58,8 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 	private final ConcurrentLinkedQueue<Named<RemoteGridScheduler>> registeredGridSchedulers;
 
+	private ConcurrentHashMap<String, Integer> gridSchedulerCapacity;
+	private long lastGSCapacityUpdate;
 
 
 
@@ -86,6 +99,12 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 		this.registeredGridSchedulers = new ConcurrentLinkedQueue<>();
 		this.registeredResourceManagers = new ConcurrentLinkedQueue<>();
+
+		this.resourceManagerCapacity = new ConcurrentHashMap<>();
+		this.lastRMCapacityUpdate = 0;
+
+		this.gridSchedulerCapacity = new ConcurrentHashMap<>();
+		this.lastGSCapacityUpdate = 0;
 
 
 		// start the polling thread
@@ -222,45 +241,75 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 	@Override
 	public boolean offloadJob(Job job) throws RemoteException {
-		// TODO: Change to take CLient as source i.s.o RM?
-		String minLoadRM = getLeastLoadedResourceManager();
-		RemoteResourceManager rrm = this.resourceManagers.get(minLoadRM);
-		rrm.addJob(job);
+		if (this.lastRMCapacityUpdate+ RM_CAPACITY_CACHE_DURATION < System.currentTimeMillis()) {
+			this.updateRMCapacities();
+		}
+		if (this.lastGSCapacityUpdate+ GS_CAPACITY_CACHE_DURATION < System.currentTimeMillis()) {
+			this.updateGSCapacities();
+		}
 
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
-		// TODO: MAKE THIS OFFLOAD TO OTHER CLUSTERS TOO
+		boolean wasOffloadedBefore = job.hasBeenOffloaded();
+		System.out.printf("Received a job to offload. ---------------------------\n");
+		// Mark this job as having been offloaded to prevent offload-cycles.
+		job.setHasBeenOffloaded(true);
 
-		return true;
+
+		// Keep trying the highestCapacityGS until we run out of GSs or we succeed.
+		boolean jobDispatched = false;
+		String targetGsName = this.getHighestCapacityGS();
+		System.out.printf("highest cap GS: %s\n", targetGsName);
+		do {
+
+			RemoteGridScheduler targetGs = this.getGridSchedulerByName(targetGsName);
+
+			// If no other GS to offload to, or if we are the highest capacity GS keep it within this GS.
+			if (wasOffloadedBefore || targetGsName == null || targetGs == null || this.name.equals(targetGsName)) {
+				System.out.printf("This GS is null or is us\n");
+
+				// Keep trying the highestCapacityRM until we run out of RMs or we succeed.
+				do {
+					String targetRmName = this.getHighestCapacityRM();
+					System.out.printf("Highest cap RM: %s\n", targetRmName);
+					try {
+						if (targetRmName == null || !this.resourceManagers.containsKey(targetRmName)) {
+							throw new RemoteException();	// ugly but whatever. Make sure we execute the catch.
+						}
+						RemoteResourceManager targetRm = this.resourceManagers.get(targetRmName);
+						targetRm.offloadJob(job, this.name);
+						jobDispatched = true;
+
+					} catch (RemoteException e) {
+						this.removeResourceManager(targetRmName);
+					}
+				} while (this.resourceManagers.size() > 0 && !jobDispatched);
+
+				// If we found some other GS with the highest capacity
+			} else {
+				targetGs.offloadJob(job);
+				jobDispatched = true;
+			}
+		} while (this.gridSchedulerCapacity.size() > 0 && !jobDispatched);
+
+		return jobDispatched;
 	}
 
 
-	private String getLeastLoadedResourceManager() {
-		int minLoad = Integer.MAX_VALUE;
-		String minLoadRM = null;
-		for (String rmName : this.resourceManagerLoad.keySet()) {
-			int load = this.resourceManagerLoad.get(rmName);
+	private String getHighestCapacityRM() {
+		System.out.printf("Checking highest capacity RM");
+		int maxCapacity = Integer.MIN_VALUE;
+		String maxCapacityRM = null;
+		for (String rmName : this.resourceManagerCapacity.keySet()) {
 
-			if (load <= minLoad) {
-				minLoad = load;
-				minLoadRM = rmName;
+			int capacity = this.resourceManagerCapacity.get(rmName);
+			System.out.printf("%s: %d\n", rmName, capacity);
+			if (capacity >= maxCapacity) {
+				maxCapacity = capacity;
+				maxCapacityRM = rmName;
 
 			}
 		}
-		return minLoadRM;
+		System.out.printf("%s has highest cap!", maxCapacity);
+		return maxCapacityRM;
 	}
 
 
@@ -307,6 +356,110 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	}
 
 
+	@Override
+	public int getHighestCapacityRMCapacity() throws RemoteException {
+		if (this.lastRMCapacityUpdate+ RM_CAPACITY_CACHE_DURATION < System.currentTimeMillis()) {
+			this.updateRMCapacities();
+		}
+
+		if (this.resourceManagerCapacity.size() <= 0) {
+			// TODO: Throw some exception / log something?
+			return Integer.MIN_VALUE;
+		}
+
+		int highestCapacity = Integer.MIN_VALUE;
+
+		for (String rmName : this.resourceManagerCapacity.keySet()) {
+			int capacity = this.resourceManagerCapacity.get(rmName);
+
+			if (capacity > highestCapacity) {
+				highestCapacity = capacity;
+			}
+		}
+
+		return highestCapacity;
+	}
+
+
+
+	private void updateRMCapacities() {
+		System.out.printf("Updating Rm capactieis");
+		this.lastRMCapacityUpdate = System.currentTimeMillis();
+		for (String rmName : this.resourceManagers.keySet()) {
+			RemoteResourceManager rm = this.resourceManagers.get(rmName);
+			try {
+				int capacity = rm.getCapacity();
+				System.out.printf("RM %s: %d", rmName, capacity);
+				this.resourceManagerCapacity.put(rmName, capacity);
+			} catch (RemoteException e) {
+				this.removeResourceManager(rmName);
+			}
+		}
+		System.out.printf("Done updating RM capacities");
+	}
+	//@Override
+	public String getHighestCapacityGS() throws RemoteException {
+		if (this.lastGSCapacityUpdate+ GS_CAPACITY_CACHE_DURATION < System.currentTimeMillis()) {
+			System.out.printf("Updating GS capacities !!!\n");
+			this.updateGSCapacities();
+		}
+
+		if (this.gridSchedulerCapacity.size() <= 0) {
+			// TODO: Throw some exception / log something?
+			return null;
+		}
+
+		int highestCapacity = Integer.MIN_VALUE;
+		String highestCapacityName = null;
+
+		System.out.printf("Getting highest cap GS:");
+		for (String gsName : this.gridSchedulerCapacity.keySet()) {
+			if (gsName.equals(this.name)) {
+				System.out.printf("Skipping self");
+				// Skip self
+				continue;
+			}
+
+			int capacity = this.gridSchedulerCapacity.get(gsName);
+			System.out.printf("GS from cache: %s: %d\n", gsName, capacity);
+
+			if (capacity > highestCapacity) {
+				highestCapacity = capacity;
+				highestCapacityName = gsName;
+			}
+		}
+
+		System.out.printf("Highest cap GS from cache is %s\n", highestCapacityName);
+		return highestCapacityName;
+	}
+
+	private void updateGSCapacities() {
+		System.out.printf("Updating GS capacities");
+		this.lastGSCapacityUpdate = System.currentTimeMillis();
+		for (Named<RemoteGridScheduler> namedGs : this.registeredGridSchedulers) {
+			String gsName = namedGs.getName();
+			RemoteGridScheduler gs = namedGs.getObject();
+			try {
+				int capacity = gs.getHighestCapacityRMCapacity();
+				System.out.printf("GS %s: %d\n", gsName, capacity);
+				this.gridSchedulerCapacity.put(gsName, capacity);
+			} catch (RemoteException e) {
+				this.removeGridScheduler(gsName);
+			}
+		}
+		System.out.printf("Done updating GS capacities\n");
+	}
+
+	private RemoteGridScheduler getGridSchedulerByName(String name) {
+		for (Named<RemoteGridScheduler> gs : this.registeredGridSchedulers) {
+			if (gs.getName().equals(name)) {
+				return gs.getObject();
+			}
+		}
+
+		return null;
+	}
+
 
 	/**
 	 * Gets the number of jobs that are waiting for completion.
@@ -334,10 +487,16 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 		return ret;
 	}
 
+	private void removeGridScheduler(String name) {
+		this.registeredGridSchedulers.remove(new Named<RemoteGridScheduler>(name, null));
+		this.gridSchedulerCapacity.remove(name);
+	}
+
 	private void removeResourceManager(String name) {
 		this.resourceManagerLoad.remove(name);
 		this.resourceManagers.remove(name);
 		this.registeredResourceManagers.remove(new Named<RemoteResourceManager>(name, null));
+		this.resourceManagerCapacity.remove(name);
 	}
 
 	@Override
@@ -397,12 +556,6 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 		}
 
 	}
-
-	/**
-	 * Polling thread runner. This thread polls each resource manager in turn to get its load,
-	 * then offloads any job in the waiting queue to that resource manager
-	 */
-
 
 	/**
 	 * Stop the polling thread. This has to be called explicitly to make sure the program
