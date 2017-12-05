@@ -54,6 +54,7 @@ public class Client implements RemoteClient {
 
             lookupResourceManagers(Arrays.copyOfRange(args, 6, args.length), registry);
 
+            this.logicalClock.tickSendEvent();
             Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_REGISTERED_REGISTRY, this.getName(), registryHost, registryPort);
 
             if (!RemoteResourceManager.logEvent(this.resourceManagers, event))
@@ -133,7 +134,9 @@ public class Client implements RemoteClient {
 
             try {
                 // Log attempt to schedule job
+                this.logicalClock.tickSendEvent();
                 Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_JOB_SCHEDULE_ATTEMPT, this.getName(), job.getId(), rmName);
+
                 if (!RemoteResourceManager.logEvent(this.resourceManagers, event))
                     System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
 
@@ -148,7 +151,9 @@ public class Client implements RemoteClient {
 
             } catch (RemoteException e) {
                 // Incase of RemoteException, assume the RM has crashed. Log this.
+                this.logicalClock.tickSendEvent();
                 Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_DETECTED_CRASHED_RM, this.name, rmName);
+
 
                 try {
                     if (!RemoteResourceManager.logEvent(this.resourceManagers, event)) {
@@ -177,7 +182,9 @@ public class Client implements RemoteClient {
     public void jobDone(Job job) throws RemoteException {
         System.out.printf("Received response for job '%s'.\n", job.getId());
 
+        this.logicalClock.tickSendEvent();
         Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_JOB_DONE, this.getName(), job.getId());
+
         if (!RemoteResourceManager.logEvent(this.resourceManagers, event)) {
             System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
         }
@@ -196,7 +203,9 @@ public class Client implements RemoteClient {
     }
 
     private void closeClientRMI() throws RemoteException, NotBoundException {
+        this.logicalClock.tickSendEvent();
         Event exitEvent = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_EXITING, this.getName());
+
         if (!RemoteResourceManager.logEvent(this.resourceManagers, exitEvent))
             System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
 

@@ -107,6 +107,7 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 				RemoteResourceManager rrm = rm.getStub();
 				Registry registry = LocateRegistry.getRegistry();
 
+				rm.logicalClock.tickSendEvent();
 				rm.logEvent(new Event.TypedEvent(rm.logicalClock, EventType.RM_REGISTERED_REGISTRY, rm.getName(), registryHost, registryPort));
 				registry.rebind(name, rrm);
 
@@ -166,6 +167,7 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 	@Override
 	public boolean addJob(Job job) throws RemoteException {
+
 		this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.RM_RECEIVED_JOB_REQUEST, this.getName(), job.getId(), job.getDuration(), job.getIssueingClientName()));
 
 
@@ -255,6 +257,7 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 	@Override
 	public boolean logEvent(Event e) throws RemoteException {
+		this.logicalClock.tickReceiveEvent(e.getTimestamp());
 		this.logger.log(e);
 		return this.rgs.getObject().logEvent(e);
 	}
