@@ -49,6 +49,15 @@ task client(type: JavaExec) {
     }
 }
 
+task mc(type: JavaExec) {
+    main = 'distributed.systems.gridscheduler.MultiClient'
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("argv") ) {
+        args = Eval.me(argv)
+    }
+}
+
 task frontend(type: JavaExec) {
     main = 'distributed.systems.gridscheduler.Frontend'
     classpath = sourceSets.main.runtimeClasspath
