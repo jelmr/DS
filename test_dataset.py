@@ -135,19 +135,21 @@ def run(schedulers, rms):
 
   # - Run the resource managers
   print "Start the recourse managers"
-  tests = []
-  for r in rms:
-    r = r.split(", ")
-    for rm in r:
-      print "  starting %s" % rm
-      gs = rm[:3]
-      tests.append(pexpect.spawn("./gradlew rm -Pargv=\"['%s', '%s', '127.0.0.1', '%s', '%s']\"" % (rm, NODES, PORT, gs)))
-  for test in tests:
-    test.expect("75% EXECUTING")
+  #tests = []
+  #for r in rms:
+  #  r = r.split(", ")
+  #  for rm in r:
+  #    print "  starting %s" % rm
+  #    gs = rm[:3]
+  #    tests.append(pexpect.spawn("./gradlew rm -Pargv=\"['%s', '%s', '127.0.0.1', '%s', '%s']\"" % (rm, NODES, PORT, gs)))
+  #for test in tests:
+  #  test.expect("75% EXECUTING")
 
   # - Run the client
   print "ready to run client"
   #gradle client -Pargv="['']"
+  system("./gradlew rm -Pargv=\"['gs0-rm0', '50', '127.0.0.1', '%s', 'gs0']\"" % PORT)
+
 
 
 print "Starting test run"
