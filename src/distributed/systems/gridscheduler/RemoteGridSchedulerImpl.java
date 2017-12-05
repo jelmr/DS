@@ -263,7 +263,11 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 			RemoteGridScheduler targetGs = this.getGridSchedulerByName(targetGsName);
 
 			// If no other GS to offload to, or if we are the highest capacity GS keep it within this GS.
-			if (wasOffloadedBefore || targetGsName == null || targetGs == null || this.name.equals(targetGsName)) {
+			if (wasOffloadedBefore
+					|| targetGsName == null
+					|| targetGs == null
+					|| this.name.equals(targetGsName)
+					|| this.resourceManagerCapacity.get(this.getHighestCapacityRM()) > this.gridSchedulerCapacity.get(targetGsName)) {
 				System.out.printf("This GS is null or is us\n");
 
 				// Keep trying the highestCapacityRM until we run out of RMs or we succeed.
