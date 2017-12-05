@@ -13,8 +13,8 @@ To start a RM / Cluster:
 To start a Client:
     gradle client -Pargv="['<name>', '<numJobs>', 'minJobDuration', 'maxJobDuration', '<registryHost>', '<registryPort>', '<rmName>']"
 
-
-
+or alternatively (extra options available, see --help):
+    python launch_jobs.py <numjobs> <resc mngr>
 
 
 For example, starting up the system could look like this:
@@ -29,7 +29,7 @@ For example, starting up the system could look like this:
     $ gradle gs -Pargv="['gs2', '127.0.0.1', '1099', 'gs1']"
     $ gradle gs -Pargv="['gs3', '127.0.0.1', '1099', 'gs1']"
 
-    # Start a frontend that will monitor all events logged by any of the GSs. 
+    # Start a frontend that will monitor all events logged by any of the GSs.
     $ gradle frontend -Pargv="['frontend1', '127.0.0.1', '1099', 'gs1']"
 
     # Start a number of RMs

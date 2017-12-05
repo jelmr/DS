@@ -11,6 +11,8 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Queue;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -21,8 +23,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class RemoteResourceManagerImpl implements RemoteResourceManager, Serializable, INodeEventHandler {
 
-
-	public static final int MAX_QUEUE_SIZE = 4;
+    private final static long SCHEDULING_PERIOD = 1000; /* check for things to schedule every second */
+	public static final int MAX_QUEUE_SIZE = 32;
 
 	private Cluster cluster;
 	private Queue<Job> jobQueue;
@@ -58,6 +60,14 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 		this.jobQueue = new ConcurrentLinkedQueue<>();
 		this.jobQueueSize = cluster.getNodeCount() + MAX_QUEUE_SIZE;
+
+		Timer t = new Timer();
+		t.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                scheduleJobs();
+            }
+        }, 0, SCHEDULING_PERIOD);
 
 	}
 
