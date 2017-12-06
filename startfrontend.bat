@@ -1,0 +1,1 @@
+gradlew frontend -Pargv="['frontend1', '127.0.0.1', '1099', 'gs1']"

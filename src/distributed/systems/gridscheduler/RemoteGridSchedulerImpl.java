@@ -469,7 +469,7 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	 * Gets the number of jobs that are waiting for completion.
 	 * @return
 	 */
-	public int getWaitingJobs() {
+	public int getWaitingJobs() throws RemoteException {
 		return jobQueue.size();
 	}
 

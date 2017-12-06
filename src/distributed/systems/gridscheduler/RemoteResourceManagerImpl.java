@@ -1,5 +1,6 @@
 package distributed.systems.gridscheduler;
 
+import distributed.systems.gridscheduler.cache.NodeData;
 import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteClient;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
@@ -10,6 +11,8 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -252,6 +255,21 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 		this.scheduleJobs();
 	}
 
+	@Override
+	public ArrayList<NodeData> getAllNodes() throws RemoteException {
+		List<Node> source = cluster.getNodes();
+		ArrayList<NodeData> result = new ArrayList<>(source.size());
+		for (Node element : source) {
+			result.add(new NodeData(element.getName(), element.getStatus()));
+		}
+		return result;
+	}
+
+	@Override
+	public NodeData getNode(int index) throws RemoteException {
+		Node node = cluster.getNodes().get(index);
+		return new NodeData(node.getName(), node.getStatus());
+	}
 
 	@Override
 	public boolean logEvent(Event e) throws RemoteException {

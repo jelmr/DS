@@ -1,10 +1,13 @@
 package distributed.systems.gridscheduler.remote;
 
 import distributed.systems.gridscheduler.Named;
+import distributed.systems.gridscheduler.cache.NodeData;
 import distributed.systems.gridscheduler.model.Event;
 import distributed.systems.gridscheduler.model.Job;
+
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -108,5 +111,9 @@ public interface RemoteResourceManager extends Remote, RemoteLogger {
 	 * @throws RemoteException
 	 */
 	public void jobDone(Job job) throws RemoteException;
+
+	ArrayList<NodeData> getAllNodes() throws RemoteException;
+
+	NodeData getNode(int index) throws RemoteException;
 
 }
