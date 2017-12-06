@@ -26,7 +26,7 @@ public class RegistryHost {
 			// TODO: Get proper IP instead of localhost
 			String registryHost = "127.0.0.1";
 
-			System.out.printf("Started a registry on %s:%d", registryHost, port);
+			System.out.printf("Started a registry on %s:%d\n", registryHost, port);
 		} catch (RemoteException e) {
 			e.printStackTrace();
 		}

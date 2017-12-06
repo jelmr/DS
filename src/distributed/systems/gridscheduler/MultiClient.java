@@ -89,6 +89,8 @@ public class MultiClient implements RemoteClient {
         } catch (NotBoundException e) {
             e.printStackTrace();
         }
+
+        System.out.println("Test complete");
     }
 
     /* ************************************************************************
@@ -215,6 +217,7 @@ public class MultiClient implements RemoteClient {
 
             while (tripletScanner.hasNext()) {
                 String resourceManager = tripletScanner.next();
+
                 rmList.add(new Named<>(resourceManager, getRemoteResourceManager(resourceManager)));
             }
 
