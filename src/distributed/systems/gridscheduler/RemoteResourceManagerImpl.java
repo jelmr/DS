@@ -273,12 +273,12 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 	}
 
 	@Override
-	public Integer getQueueSize() throws RemoteException {
+	public Integer getQueueLimit() throws RemoteException {
 		return jobQueueSize;
 	}
 
 	@Override
-    public Integer getQueuedJobs() throws RemoteException {
+    public Integer getQueueSize() throws RemoteException {
         return jobQueue.size();
     }
 
@@ -292,9 +292,6 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 	@Override
 	public String getName() throws RemoteException {
-
 		return this.name;
 	}
-
-
 }

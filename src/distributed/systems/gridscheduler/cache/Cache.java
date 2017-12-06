@@ -7,5 +7,5 @@ package distributed.systems.gridscheduler.cache;
 public interface Cache {
     void invalidate();
 
-    void forceRefresh();
+    void reloadStaleValues();
 }

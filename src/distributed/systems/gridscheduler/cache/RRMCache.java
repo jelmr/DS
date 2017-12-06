@@ -1,190 +1,145 @@
 package distributed.systems.gridscheduler.cache;
 
-import distributed.systems.gridscheduler.model.NodeStatus;
+import distributed.systems.gridscheduler.neogui.RRMStatusPanelData;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 
 import java.rmi.RemoteException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * DS:distributed.systems.gridscheduler.cache.RRMCache
  * Written by Glenn. Created on 2017-12-05 at 22:00.
  */
-public class RRMCache implements Cache {
+public class RRMCache implements Cache, RRMStatusPanelData {
 
-    private String name;
     private final RemoteResourceManager source;
 
-    private Cached<Integer> nodeCount;
-    private Cached<Integer> amountOfIdleNodes;
-    private Cached<Integer> amountOfBusyNodes;
-    private Cached<Integer> amountOfDownNodes;
-    private Cached<Integer> queuedJobs;
-    private Cached<Integer> queueSize;
+    private final Cached<String> name = new Cached<>();
 
-    private Cached<List<NodeData>> allNodeData;
+    private final Cached<Integer> idleNodeCount = new Cached<>();
+    private final Cached<Integer> busyNodeCount = new Cached<>();
+    private final Cached<Integer> downNodeCount = new Cached<>();
+    private final Cached<Integer> queueSize = new Cached<>();
+    private final Cached<Integer> queueLimit = new Cached<>();
 
-    private Map<String, NodeData> nodes;
-
-    public RRMCache(String name, RemoteResourceManager source) {
-        this.name = name;
+    public RRMCache(RemoteResourceManager source) {
         this.source = source;
-
-        nodeCount = new Cached<>();
-        amountOfIdleNodes = new Cached<>();
-        amountOfBusyNodes = new Cached<>();
-        amountOfDownNodes = new Cached<>();
-        queuedJobs = new Cached<>();
-        queueSize = new Cached<>();
-
-        allNodeData = new Cached<>();
-
-        nodes = new HashMap<>();
-
-        forceRefresh();
     }
 
     @Override
     public void invalidate() {
-        nodeCount.invalidate();
-        amountOfIdleNodes.invalidate();
-        amountOfBusyNodes.invalidate();
-        amountOfDownNodes.invalidate();
-        queuedJobs.invalidate();
-        queueSize.invalidate();
+        System.out.println("RRMCache invalidated");
+        name.invalidate();
 
-        allNodeData.invalidate();
+        idleNodeCount.invalidate();
+        busyNodeCount.invalidate();
+        downNodeCount.invalidate();
+        queueSize.invalidate();
+        queueLimit.invalidate();
     }
 
     @Override
-    public void forceRefresh() {
-        try {
-            refreshAllNodes();
-            queueSize.updateValue(source.getQueueSize());
-            queuedJobs.updateValue(source.getQueuedJobs());
+    public void reloadStaleValues() {
+        reloadStaleName();
+        reloadStaleQueueSize();
+        reloadStaleQueueLimit();
+        reloadStaleNodeCounts();
+
+    }
+
+    private void reloadStaleName() {
+        if (name.isStale()) try {
+            name.updateValue(source.getName());
         } catch (RemoteException e) {
             e.printStackTrace();
         }
     }
 
-    private void refreshAllNodes() throws RemoteException {
-        if (allNodeData.isStale()) {
-            allNodeData.updateValue(source.getAllNodes());
+    private void reloadStaleQueueLimit() {
+        if (queueLimit.isStale()) try {
+            queueLimit.updateValue(source.getQueueLimit());
+        } catch (RemoteException e) {
+            e.printStackTrace();
         }
-        List<NodeData> allData = allNodeData.getValue();
-        int[] statusCounts = {0, 0, 0};
-        allData.forEach(data -> {
-            if (!nodes.containsKey(data.getName())) {
-                nodes.put(data.getName(), data);
-            }
-            nodes.get(data.getName()).setStatus(data.getStatus());
-            switch (data.getStatus()) {
-                case Idle:
-                    statusCounts[0]++;
-                    break;
-                case Busy:
-                    statusCounts[1]++;
-                    break;
-                case Down:
-                    statusCounts[2]++;
-                    break;
-            }
-        });
-
-        nodeCount.updateValue(statusCounts[0] + statusCounts[1] + statusCounts[2]);
-        amountOfIdleNodes.updateValue(statusCounts[0]);
-        amountOfBusyNodes.updateValue(statusCounts[1]);
-        amountOfDownNodes.updateValue(statusCounts[2]);
     }
 
-    public String getName() {
-        return name;
+    private void reloadStaleQueueSize() {
+        if (queueSize.isStale()) try {
+            queueSize.updateValue(source.getQueueSize());
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 
-    public int getNodeCount() {
-        return getAmountOfIdleNodes() + getAmountOfBusyNodes() + getAmountOfDownNodes();
-    }
-
-    public int getAmountOfIdleNodes() {
-        if (amountOfIdleNodes.isStale()) {
+    private void reloadStaleNodeCounts() {
+        if (idleNodeCount.isStale() | busyNodeCount.isStale() | downNodeCount.isStale()) {
             try {
-                refreshAllNodes();
+                ArrayList<NodeData> allData = source.getAllNodes();
+                int[] status = {0, 0, 0};
+                allData.forEach(nodeData -> {
+                    switch (nodeData.getStatus()) {
+                        case Idle: status[0]++;
+                            break;
+                        case Busy: status[1]++;
+                            break;
+                        case Down: status[2]++;
+                            break;
+                    }
+                });
+                idleNodeCount.updateValue(status[0]);
+                busyNodeCount.updateValue(status[1]);
+                downNodeCount.updateValue(status[2]);
             } catch (RemoteException e) {
                 e.printStackTrace();
             }
         }
-        return amountOfIdleNodes.getValue();
     }
 
-    public int getAmountOfBusyNodes() {
-        if (amountOfBusyNodes.isStale()) {
-            try {
-                refreshAllNodes();
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-        return amountOfBusyNodes.getValue();
+    @Override
+    public String getNameValue() {
+        reloadStaleName();
+        return name.getValue();
     }
 
-    public int getAmountOfDownNodes() {
-        if (amountOfDownNodes.isStale()) {
-            try {
-                refreshAllNodes();
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-        return amountOfDownNodes.getValue();
+    @Override
+    public String getNodeCountValue() {
+        reloadStaleNodeCounts();
+        int totalNodes = idleNodeCount.getValue() + busyNodeCount.getValue() + downNodeCount.getValue();
+        return String.format("%d", totalNodes);
     }
 
+    @Override
+    public String getLoadValue() {
+        reloadStaleNodeCounts();
+        int totalNodes = idleNodeCount.getValue() + busyNodeCount.getValue() + downNodeCount.getValue();
+        double fractionBusy = busyNodeCount.getValue() / (double) totalNodes;
+        return String.format("%.2f%%", fractionBusy * 100);
+    }
+
+    @Override
+    public String getAvailableValue() {
+        reloadStaleNodeCounts();
+        int totalNodes = idleNodeCount.getValue() + busyNodeCount.getValue() + downNodeCount.getValue();
+        double fractionNotDown = (totalNodes - downNodeCount.getValue()) / (double) totalNodes;
+        return String.format("%.2f%%", fractionNotDown * 100);
+    }
+
+    @Override
+    public String getQueueValue() {
+        reloadStaleQueueSize();
+        reloadStaleQueueLimit();
+        return String.format("%d / %d", queueSize.getValue(), queueLimit.getValue());
+    }
+
+    @Override
     public int getQueueSize() {
-        if (queueSize.isStale()) {
-            try {
-                queueSize.updateValue(source.getQueueSize());
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
+        reloadStaleQueueSize();
         return queueSize.getValue();
     }
 
-    public int getQueuedJobs() {
-        if (queuedJobs.isStale()) {
-            try {
-                queuedJobs.updateValue(source.getQueuedJobs());
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-        return queuedJobs.getValue();
-    }
-
-    public NodeStatus getStatusOf(int index) {
-        if (allNodeData.isStale()) {
-            try {
-                refreshAllNodes();
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-        String name = allNodeData.getValue().get(index).getName();
-        return nodes.get(name).getStatus();
-    }
-
-    public void refreshSingleNode(String nodeName, NodeStatus nodeStatus) {
-        nodes.get(nodeName).setStatus(nodeStatus);
-    }
-
-    public boolean isSourceDead() {
-        try {
-            source.getName();
-            return false;
-        } catch (RemoteException e) {
-            return true;
-        }
+    @Override
+    public int getQueueLimit() {
+        reloadStaleQueueLimit();
+        return queueLimit.getValue();
     }
 }

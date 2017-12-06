@@ -2,8 +2,10 @@ package distributed.systems.gridscheduler;
 
 import distributed.systems.gridscheduler.cache.RGSCache;
 import distributed.systems.gridscheduler.cache.RRMCache;
-import distributed.systems.gridscheduler.gui.*;
 import distributed.systems.gridscheduler.model.*;
+import distributed.systems.gridscheduler.neogui.NeoGuiHost;
+import distributed.systems.gridscheduler.neogui.RGSStatusFrame;
+import distributed.systems.gridscheduler.neogui.RRMStatusPanel;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteLogger;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
@@ -34,7 +36,7 @@ public class Frontend implements RemoteLogger {
 	private Registry registry;
 	private String name;
 
-	private GuiHost guiHost;
+	private NeoGuiHost neoGuiHost;
 
 
 	public Frontend(String[] args) {
@@ -73,9 +75,9 @@ public class Frontend implements RemoteLogger {
 			System.exit(1);
 		}
 
-		guiHost = new GuiHost();
+		neoGuiHost = new NeoGuiHost();
 		prepareGui();
-		guiHost.start();
+		neoGuiHost.start();
 
 	}
 
@@ -91,9 +93,9 @@ public class Frontend implements RemoteLogger {
 	}
 
 	private void prepareRGSGui(String rgsName, RemoteGridScheduler rgs) {
-		RGSCache rgsCache = new RGSCache(rgsName, rgs);
-		GSFrame frame = new GSFrame(rgsCache);
-		guiHost.addRGS(rgsName, frame, rgsCache);
+		RGSCache rgsCache = new RGSCache(rgs);
+		RGSStatusFrame frame = new RGSStatusFrame(rgsCache);
+		neoGuiHost.addRGS(rgsName, frame, rgsCache);
 
 		try {
 			for (Named<RemoteResourceManager> namedRRM : rgs.getResourceManagers(this.name)) {
@@ -106,9 +108,9 @@ public class Frontend implements RemoteLogger {
 	}
 
 	private void prepareRRMGui(String rgsName, String rrmName, RemoteResourceManager rrm) {
-		RRMCache rrmCache = new RRMCache(rrmName, rrm);
-		RMStatusPanel panel = new RMStatusPanel(rrmCache);
-		guiHost.addRRM(rgsName, rrmName, panel, rrmCache);
+		RRMCache rrmCache = new RRMCache(rrm);
+		RRMStatusPanel panel = new RRMStatusPanel(rrmCache);
+		neoGuiHost.addRRM(rgsName, rrmName, panel, rrmCache);
 	}
 
 	@Override
@@ -131,12 +133,12 @@ public class Frontend implements RemoteLogger {
 				break;
 			case RM_SCHEDULED_JOB_ON_NODE:
 				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
-				thread = new Thread(() -> handleRMScheduledNode(args));
+				thread = new Thread(() -> handleRMScheduledNode((String) args[0], (String) args[2]));
 				break;
 
 			case RM_FINISHED_JOB:
 				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
-				thread = new Thread(() -> handRMFinishedJob(args));
+				thread = new Thread(() -> handRMFinishedJob((String) args[0]));
 				break;
 
 			case CLIENT_REGISTERED_REGISTRY:
@@ -158,7 +160,7 @@ public class Frontend implements RemoteLogger {
 
 			case GS_ACCEPTS_RM_REGISTRATION:
 				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
-				thread = new Thread(() -> handleRMRegistersGS(args));
+				thread = new Thread(() -> handleRMRegistersGS((String) args[0], (String) args[1]));
 				break;
 
 			case RM_REGISTERS_WITH_GS:
@@ -179,7 +181,7 @@ public class Frontend implements RemoteLogger {
 
 			case GS_ACCEPTS_GS_REGISTRATION:
 				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
-				thread = new Thread(() -> handleGSAcceptGS(args));
+				thread = new Thread(() -> handleGSAcceptGS((String) args[1]));
 				break;
 
 			case GS_SEND_LIST_GS:
@@ -196,17 +198,17 @@ public class Frontend implements RemoteLogger {
 
 			case CLIENT_DETECTED_CRASHED_RM:
 				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
-				thread = new Thread(() -> handleClientDetectCrashedRM(args));
+				thread = new Thread(() -> handleClientDetectCrashedRM((String) args[1]));
 				break;
 
 			case RM_RECEIVED_JOB_REQUEST:
 				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
-				guiHost.updateRRM(((String) args[0]));
+				thread = new Thread(() -> handleRMReceivedJobRequest((String) args[0]));
 				break;
 
 			case RM_QUEUED_JOB:
 				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
-				thread = new Thread(() -> handleRMQueuedJob(args));
+				thread = new Thread(() -> handleRMQueuedJob((String) args[0]));
 				break;
 
 			case RM_OFFLOAD_TO_GS_ATTEMPT:
@@ -228,63 +230,60 @@ public class Frontend implements RemoteLogger {
 		return false;
 	}
 
-	private void handleRMQueuedJob(Object[] args) {
-		String rrmName = ((String) args[0]);
-		try {
-			guiHost.updateRRM(rrmName);
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		}
+	private void handleRMReceivedJobRequest(String rrmName) {
+		neoGuiHost.updateRRM(rrmName);
 	}
 
-	private void handleClientDetectCrashedRM(Object[] args) {
-		String rrmName = (String) args[1];
-		guiHost.reportDeadRRM(rrmName);
+	private void handleRMQueuedJob(String rrmName) {
+		neoGuiHost.updateRRM(rrmName);
 	}
 
-	private void handleGSAcceptGS(Object[] args) {
-		String rgsName = (String) args[1];
+	private void handleClientDetectCrashedRM(String rrmName) {
+		neoGuiHost.reportDeadRRM(rrmName);
+	}
+
+	private void handleGSAcceptGS(String rgsName) {
 
 		try {
 			RemoteGridScheduler rgs = (RemoteGridScheduler) registry.lookup(rgsName);
-			RGSCache rgsCache = new RGSCache(rgsName, rgs);
-			GSFrame frame = new GSFrame(rgsCache);
-			guiHost.addRGS(rgsName, frame, rgsCache);
+			RGSCache rgsCache = new RGSCache(rgs);
+			RGSStatusFrame frame = new RGSStatusFrame(rgsCache);
+
+			//TODO this really should allow my to listen in...
+			subscribedGridSchedulers.add(new Named<>(rgsName, rgs));
+			// TODO actually enable listening in...
+			// TODO actually enable listening in...
+			// TODO actually enable listening in...
+			// TODO actually enable listening in...
+			// TODO actually enable listening in...
+
+			neoGuiHost.addRGS(rgsName, frame, rgsCache);
 
 		} catch (RemoteException | NotBoundException | ClassCastException e) {
 			e.printStackTrace();
 		}
 	}
 
-	private void handRMFinishedJob(Object[] args) {
-		String rrmName = (String) args[0];
-		try {
-			guiHost.updateRRM(rrmName);
-			guiHost.updateNodes(rrmName);
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		}
+	private void handRMFinishedJob(String rrmName) {
+		neoGuiHost.updateRRM(rrmName);
+		neoGuiHost.updateNodes(rrmName);
 	}
 
-	private void handleRMScheduledNode(Object[] args) {
-		String rrmName = (String) args[0];
-		String nodeName = (String) args[2];
+	private void handleRMScheduledNode(String rrmName, String nodeName) {
 		NodeStatus nodeStatus = NodeStatus.Busy;
-		guiHost.updateNode(rrmName, nodeName, nodeStatus);
+		neoGuiHost.updateNode(rrmName, nodeName, nodeStatus);
 	}
 
-	private void handleRMRegistersGS(Object[] args) {
-		String rgsName = (String) args[0];
-		String rrmName = (String) args[1];
+	private void handleRMRegistersGS(String rgsName, String rrmName) {
 
 		boolean searching = true;
 		int tries = 0;
 		while (searching && tries < 5) {
 			try {
 				RemoteResourceManager rrm = (RemoteResourceManager) registry.lookup(rrmName);
-				RRMCache rrmCache = new RRMCache(rrmName, rrm);
-				RMStatusPanel panel = new RMStatusPanel(rrmCache);
-				guiHost.addRRM(rgsName, rrmName, panel, rrmCache);
+				RRMCache rrmCache = new RRMCache(rrm);
+				RRMStatusPanel panel = new RRMStatusPanel(rrmCache);
+				neoGuiHost.addRRM(rgsName, rrmName, panel, rrmCache);
 				searching = false;
 
 			} catch (RemoteException | ClassCastException e) {

@@ -20,7 +20,6 @@ public class RRMStatusPanel extends javax.swing.JPanel {
 
     @Override
     public void revalidate() {
-        System.out.println("Revalidating");
         updateValues();
         super.revalidate();
     }
