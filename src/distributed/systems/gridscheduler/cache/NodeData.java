@@ -12,11 +12,19 @@ public class NodeData implements Serializable {
 
     private static final long serialVersionUID = 7598795436168166743L;
 
-    private final String name;
-    private final NodeStatus status;
+    private String name;
+    private NodeStatus status;
 
     public NodeData(String name, NodeStatus status) {
         this.name = name;
+        this.status = status;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setStatus(NodeStatus status) {
         this.status = status;
     }
 

@@ -22,10 +22,12 @@ public class RRMCache implements Cache {
     private Cached<Integer> amountOfIdleNodes;
     private Cached<Integer> amountOfBusyNodes;
     private Cached<Integer> amountOfDownNodes;
+    private Cached<Integer> queuedJobs;
+    private Cached<Integer> queueSize;
 
     private Cached<List<NodeData>> allNodeData;
 
-    private Map<String, Cached<NodeData>> nodes;
+    private Map<String, NodeData> nodes;
 
     public RRMCache(String name, RemoteResourceManager source) {
         this.name = name;
@@ -35,6 +37,8 @@ public class RRMCache implements Cache {
         amountOfIdleNodes = new Cached<>();
         amountOfBusyNodes = new Cached<>();
         amountOfDownNodes = new Cached<>();
+        queuedJobs = new Cached<>();
+        queueSize = new Cached<>();
 
         allNodeData = new Cached<>();
 
@@ -49,13 +53,18 @@ public class RRMCache implements Cache {
         amountOfIdleNodes.invalidate();
         amountOfBusyNodes.invalidate();
         amountOfDownNodes.invalidate();
-        nodes.forEach((s, nodeStatusCached) -> nodeStatusCached.invalidate());
+        queuedJobs.invalidate();
+        queueSize.invalidate();
+
+        allNodeData.invalidate();
     }
 
     @Override
     public void forceRefresh() {
         try {
             refreshAllNodes();
+            queueSize.updateValue(source.getQueueSize());
+            queuedJobs.updateValue(source.getQueuedJobs());
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -69,9 +78,9 @@ public class RRMCache implements Cache {
         int[] statusCounts = {0, 0, 0};
         allData.forEach(data -> {
             if (!nodes.containsKey(data.getName())) {
-                nodes.put(data.getName(), new Cached<>());
+                nodes.put(data.getName(), data);
             }
-            nodes.get(data.getName()).updateValue(data);
+            nodes.get(data.getName()).setStatus(data.getStatus());
             switch (data.getStatus()) {
                 case Idle:
                     statusCounts[0]++;
@@ -132,9 +141,30 @@ public class RRMCache implements Cache {
         return amountOfDownNodes.getValue();
     }
 
+    public int getQueueSize() {
+        if (queueSize.isStale()) {
+            try {
+                queueSize.updateValue(source.getQueueSize());
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+        return queueSize.getValue();
+    }
+
+    public int getQueuedJobs() {
+        if (queuedJobs.isStale()) {
+            try {
+                queuedJobs.updateValue(source.getQueuedJobs());
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+        return queuedJobs.getValue();
+    }
+
     public NodeStatus getStatusOf(int index) {
         if (allNodeData.isStale()) {
-            System.out.println("Fix stale");
             try {
                 refreshAllNodes();
             } catch (RemoteException e) {
@@ -142,26 +172,11 @@ public class RRMCache implements Cache {
             }
         }
         String name = allNodeData.getValue().get(index).getName();
-        NodeStatus result = nodes.get(name).getValue().getStatus();
-        if (result == NodeStatus.Busy) {
-            System.out.println("According to nodes:");
-            nodes.forEach((s, nodeDataCached) -> System.out.printf("%s, %s\n", s, nodeDataCached.getValue().getStatus().name()));
-
-            System.out.println("According to allNodeData:");
-            allNodeData.getValue().forEach((nodeData) -> System.out.printf("%s, %s\n", nodeData.getName(), nodeData.getStatus().name()));
-        }
-        return result;
+        return nodes.get(name).getStatus();
     }
 
     public void refreshSingleNode(String nodeName, NodeStatus nodeStatus) {
-        try {
-            source.getAllNodes().forEach(nodeData -> {
-                System.out.println("nodeData = " + nodeData.getStatus().name());
-            });
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-        nodes.get(nodeName).updateValue(new NodeData(nodeName, nodeStatus));
+        nodes.get(nodeName).setStatus(nodeStatus);
     }
 
     public boolean isSourceDead() {

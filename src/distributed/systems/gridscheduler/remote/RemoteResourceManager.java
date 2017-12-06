@@ -116,4 +116,7 @@ public interface RemoteResourceManager extends Remote, RemoteLogger {
 
 	NodeData getNode(int index) throws RemoteException;
 
+	Integer getQueueSize() throws RemoteException;
+
+    Integer getQueuedJobs() throws RemoteException;
 }

@@ -200,7 +200,8 @@ public class Frontend implements RemoteLogger {
 				break;
 
 			case RM_RECEIVED_JOB_REQUEST:
-				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				guiHost.updateRRM(((String) args[0]));
 				break;
 
 			case RM_QUEUED_JOB:
@@ -259,6 +260,7 @@ public class Frontend implements RemoteLogger {
 		String rrmName = (String) args[0];
 		try {
 			guiHost.updateRRM(rrmName);
+			guiHost.updateNodes(rrmName);
 		} catch (RemoteException e) {
 			e.printStackTrace();
 		}
