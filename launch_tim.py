@@ -12,9 +12,9 @@ log = open("tim.log", 'wb+')
 
 def java_process(program, *args, cp='build/classes/java/main', package='distributed.systems.gridscheduler', waitfor=None):
     command = 'java -cp %s %s.%s %s' % (cp, package, program, ' '.join(map(str, args)))
-    print(INFO + "%s" % command)
+    # print(INFO + "%s" % command)
     jp = pexpect.spawn(command, logfile=log)
-    
+
     if waitfor:
         jp.expect(waitfor)
 
@@ -31,7 +31,7 @@ RMI_PORT = 1337
 NODES_PER_CLUSTER = 50
 
 # Let's have one grid scheduler cluster for now (lighter to simulate)
-RM_PER_GS = [1,1,1,1,1]
+RM_PER_GS = [4, 4, 4, 4, 4]
 
 # Let's first run gradle to build this shit
 print(INFO + "Building project")
@@ -51,7 +51,7 @@ names_gs = []
 print(INFO + "Running gridschedulers")
 for i, count in enumerate(RM_PER_GS):
     gs_name = 'Gs%d' % i
-    gs = java_process('RemoteGridSchedulerImpl', gs_name, 'localhost', RMI_PORT, *names_gs, 
+    gs = java_process('RemoteGridSchedulerImpl', gs_name, 'localhost', RMI_PORT, *names_gs,
         waitfor="GridScheduler '%s' has registered itself with the registry at localhost:%d." % (gs_name, RMI_PORT)
     )
 
@@ -71,7 +71,7 @@ for i, count in enumerate(RM_PER_GS):
     for j in range(count):
         rm_name = '%sRm%d' % (gs_name, j)
 
-        rm = java_process('RemoteResourceManagerImpl', rm_name, NODES_PER_CLUSTER, 'localhost', RMI_PORT, gs_name, *[g for g in names_gs if g != gs_name], 
+        rm = java_process('RemoteResourceManagerImpl', rm_name, NODES_PER_CLUSTER, 'localhost', RMI_PORT, gs_name, *[g for g in names_gs if g != gs_name],
             waitfor="ResourceManager '%s' has registered itself with the registry at localhost:%d." % (rm_name, RMI_PORT)
         )
 
@@ -81,17 +81,20 @@ for i, count in enumerate(RM_PER_GS):
 print("")
 
 ###############################################################
-# REPLACE ME WITH TIM CODE 
+# REPLACE ME WITH TIM CODE
 ###############################################################
 
 # Generate a tim script to run
-print(INFO + "Running resource managers")
+print(INFO + "Generating tim")
 with open('test.tim', 'w+') as f:
     f.write("// Auto generated, do not edit\n\n")
 
-    for i in range(100):
+    for i in range(1000):
         f.write('%d, %d, %s\n' % (i, random.randint(0, 5), random.choice(names_rm)))
 
 
+print(INFO + "Running multiclient")
 tester = java_process('MultiClient', 'test.tim', 'localhost', RMI_PORT)
-tester.expect('Test complete')
+tester.expect('Test complete', timeout=None)
+print(SUCCESS + "Test complete")
+exit()
