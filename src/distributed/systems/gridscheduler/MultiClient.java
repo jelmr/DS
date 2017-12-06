@@ -74,6 +74,7 @@ public class MultiClient implements RemoteClient {
         System.out.printf("Received response for job '%s'\n", job.getId());
 
         // Logging response
+        this.logicalClock.tickSendEvent();
         Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_JOB_DONE, this.getName(), job.getId());
         if (!RemoteResourceManager.logEvent(resourceManagerList, event))
             System.out.printf("Couldn't find any ResourceManagers to log event to...\n");

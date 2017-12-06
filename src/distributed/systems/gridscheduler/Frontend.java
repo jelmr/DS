@@ -320,6 +320,7 @@ public class Frontend implements RemoteLogger {
 		for (Named<RemoteGridScheduler> gs : this.subscribedGridSchedulers) {
 
 			try {
+				this.logicalClock.tickSendEvent();
 				Event.TypedEvent e = new Event.TypedEvent(this.logicalClock, EventType.FRONTEND_SUBSCRIBE_TO_EVENTS_ATTEMPT, this.name, gs.getName());
 				RemoteGridScheduler.logEvent(this.subscribedGridSchedulers, e);
 				gs.getObject().subscribeToEvents(this.getStub(), this.name);
