@@ -317,6 +317,7 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 	@Override
 	public boolean logEvent(Event e) {
+
 		for (Named<RemoteLogger> subscribedLogger : this.subscribedLoggers) {
 			try {
 				subscribedLogger.getObject().logEvent(e);
@@ -325,6 +326,9 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 				subscribedLoggers.remove(subscribedLogger);
 			}
 		}
+		// As I get the code now, the subscribed loggers fix their own logical clocks, so
+		// we only recieve the thing here
+		this.logicalClock.tickReceiveEvent(e.getTimestamp());
 		this.logger.log(e);
 		return true;
 	}
@@ -467,7 +471,7 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	 * Gets the number of jobs that are waiting for completion.
 	 * @return
 	 */
-	public int getWaitingJobs() {
+	public int getWaitingJobs() throws RemoteException {
 		return jobQueue.size();
 	}
 

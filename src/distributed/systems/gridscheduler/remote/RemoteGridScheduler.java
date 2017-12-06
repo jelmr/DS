@@ -82,6 +82,8 @@ public interface RemoteGridScheduler extends Remote, RemoteLogger {
 	 */
 	String getName() throws RemoteException;
 
+	int getWaitingJobs() throws RemoteException;
+
 	/**
 	 * Subscribe too all Events that get logged to this GridScheduler.
 	 * @param rl The stub on which all Events will get forwarded.

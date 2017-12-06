@@ -1,12 +1,13 @@
 package distributed.systems.gridscheduler;
 
-import distributed.systems.gridscheduler.model.Event;
-import distributed.systems.gridscheduler.model.EventType;
-import distributed.systems.gridscheduler.model.LamportsClock;
-import distributed.systems.gridscheduler.model.LogicalClock;
-import distributed.systems.gridscheduler.remote.RemoteClient;
+import distributed.systems.gridscheduler.cache.RGSCache;
+import distributed.systems.gridscheduler.cache.RRMCache;
+import distributed.systems.gridscheduler.gui.*;
+import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteLogger;
+import distributed.systems.gridscheduler.remote.RemoteResourceManager;
+
 import java.rmi.ConnectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -18,8 +19,11 @@ import java.util.List;
 
 
 /**
- * @author Jelmer Mulder
+ * @author Jelmer Mulder & Glenn Visser
  *         Date: 02/12/2017
+ *
+ *         TODO largest issues, Backend for node availability refreshes to available, why? @()
+ *
  */
 public class Frontend implements RemoteLogger {
 
@@ -29,6 +33,8 @@ public class Frontend implements RemoteLogger {
 	private RemoteLogger stub;
 	private Registry registry;
 	private String name;
+
+	private GuiHost guiHost;
 
 
 	public Frontend(String[] args) {
@@ -66,14 +72,50 @@ public class Frontend implements RemoteLogger {
 			System.out.printf("Could not find GridScheduler '%s'.\n", rgsName);
 			System.exit(1);
 		}
+
+		guiHost = new GuiHost();
+		prepareGui();
+		guiHost.start();
+
 	}
 
+	private void prepareGui() {
+		for (Named<RemoteGridScheduler> namedRGS : this.subscribedGridSchedulers) {
+			try {
+				RemoteGridScheduler rgs = namedRGS.getObject();
+				prepareRGSGui(rgs.getName(), rgs);
+			} catch (RemoteException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private void prepareRGSGui(String rgsName, RemoteGridScheduler rgs) {
+		RGSCache rgsCache = new RGSCache(rgsName, rgs);
+		GSFrame frame = new GSFrame(rgsCache);
+		guiHost.addRGS(rgsName, frame, rgsCache);
+
+		try {
+			for (Named<RemoteResourceManager> namedRRM : rgs.getResourceManagers(this.name)) {
+				RemoteResourceManager rrm = namedRRM.getObject();
+				prepareRRMGui(rgsName, rrm.getName(), rrm);
+			}
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void prepareRRMGui(String rgsName, String rrmName, RemoteResourceManager rrm) {
+		RRMCache rrmCache = new RRMCache(rrmName, rrm);
+		RMStatusPanel panel = new RMStatusPanel(rrmCache);
+		guiHost.addRRM(rgsName, rrmName, panel, rrmCache);
+	}
 
 	@Override
 	public boolean logEvent(Event e) throws RemoteException {
-
 		if (!(e instanceof Event.TypedEvent)) {
 			// Can only process TypedEvents
+			System.out.printf("%10s : %s\n", "[Info]", String.format("Untyped event (%s)", e.getLogString()));
 			return false;
 		}
 
@@ -81,27 +123,186 @@ public class Frontend implements RemoteLogger {
 		EventType type = typedEvent.getType();
 		Object[] args = typedEvent.getArgs();
 
+		Thread thread = null;
 		switch(type) {
 
 			case REGISTRY_START:
-				System.out.printf("Registry started\n");
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
 				break;
 			case RM_SCHEDULED_JOB_ON_NODE:
-				String rmName = (String) args[0];
-				String jobId = (String) args[1];
-				String nodeName = (String) args[2];
-				System.out.printf("RM '%s' scheduled job '%s' on node '%s'\n", rmName, jobId, nodeName);
+				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				thread = new Thread(() -> handleRMScheduledNode(args));
+				break;
 
-				break;
 			case RM_FINISHED_JOB:
-				System.out.printf("A job has finished.\n");
+				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				thread = new Thread(() -> handRMFinishedJob(args));
 				break;
+
+			case CLIENT_REGISTERED_REGISTRY:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
 			case RM_REGISTERED_REGISTRY:
-				System.out.printf("A RM joined the system!\n");
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
 				break;
+
+			case GS_REGISTERED_REGISTRY:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case FRONTEND_REGISTERED_REGISTRY:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				// Whoo hoo that's us!
+				break;
+
+			case GS_ACCEPTS_RM_REGISTRATION:
+				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				thread = new Thread(() -> handleRMRegistersGS(args));
+				break;
+
+			case RM_REGISTERS_WITH_GS:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case FRONTEND_SUBSCRIBE_TO_EVENTS_ATTEMPT:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case GS_ACCEPTS_FRONTEND_SUBSCRIPTION:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case RM_REGISTERED_AS_DUPLICATE:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case GS_ACCEPTS_GS_REGISTRATION:
+				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				thread = new Thread(() -> handleGSAcceptGS(args));
+				break;
+
+			case GS_SEND_LIST_GS:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case GS_SEND_LIST_RM:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case CLIENT_JOB_SCHEDULE_ATTEMPT:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case CLIENT_DETECTED_CRASHED_RM:
+				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				thread = new Thread(() -> handleClientDetectCrashedRM(args));
+				break;
+
+			case RM_RECEIVED_JOB_REQUEST:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case RM_QUEUED_JOB:
+				System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				thread = new Thread(() -> handleRMQueuedJob(args));
+				break;
+
+			case RM_OFFLOAD_TO_GS_ATTEMPT:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case CLIENT_JOB_DONE:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+
+			case CLIENT_EXITING:
+				//System.out.printf("%10s : %s\n", "[Info]", String.format(type.getFormatString(), args));
+				break;
+		}
+		if (thread != null) {
+			thread.start();
 		}
 
 		return false;
+	}
+
+	private void handleRMQueuedJob(Object[] args) {
+		String rrmName = ((String) args[0]);
+		try {
+			guiHost.updateRRM(rrmName);
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void handleClientDetectCrashedRM(Object[] args) {
+		String rrmName = (String) args[1];
+		guiHost.reportDeadRRM(rrmName);
+	}
+
+	private void handleGSAcceptGS(Object[] args) {
+		String rgsName = (String) args[1];
+
+		try {
+			RemoteGridScheduler rgs = (RemoteGridScheduler) registry.lookup(rgsName);
+			RGSCache rgsCache = new RGSCache(rgsName, rgs);
+			GSFrame frame = new GSFrame(rgsCache);
+			guiHost.addRGS(rgsName, frame, rgsCache);
+
+		} catch (RemoteException | NotBoundException | ClassCastException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void handRMFinishedJob(Object[] args) {
+		String rrmName = (String) args[0];
+		try {
+			guiHost.updateRRM(rrmName);
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void handleRMScheduledNode(Object[] args) {
+		String rrmName = (String) args[0];
+		String nodeName = (String) args[2];
+		NodeStatus nodeStatus = NodeStatus.Busy;
+		guiHost.updateNode(rrmName, nodeName, nodeStatus);
+	}
+
+	private void handleRMRegistersGS(Object[] args) {
+		String rgsName = (String) args[0];
+		String rrmName = (String) args[1];
+
+		boolean searching = true;
+		int tries = 0;
+		while (searching && tries < 5) {
+			try {
+				RemoteResourceManager rrm = (RemoteResourceManager) registry.lookup(rrmName);
+				RRMCache rrmCache = new RRMCache(rrmName, rrm);
+				RMStatusPanel panel = new RMStatusPanel(rrmCache);
+				guiHost.addRRM(rgsName, rrmName, panel, rrmCache);
+				searching = false;
+
+			} catch (RemoteException | ClassCastException e) {
+				e.printStackTrace();
+				tries++;
+			} catch (NotBoundException e) {
+				tries++;
+			}
+			if (searching) {
+				sleepExpBackoff(tries);
+			}
+		}
+	}
+
+	private void sleepExpBackoff(int exponent) {
+		try {
+            Thread.sleep((long) (Math.pow(2, exponent) * 100));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 	}
 
 
@@ -114,10 +315,12 @@ public class Frontend implements RemoteLogger {
 		new Frontend(args).start();
 	}
 
-
 	private void start() {
+
 		for (Named<RemoteGridScheduler> gs : this.subscribedGridSchedulers) {
+
 			try {
+				this.logicalClock.tickSendEvent();
 				Event.TypedEvent e = new Event.TypedEvent(this.logicalClock, EventType.FRONTEND_SUBSCRIBE_TO_EVENTS_ATTEMPT, this.name, gs.getName());
 				RemoteGridScheduler.logEvent(this.subscribedGridSchedulers, e);
 				gs.getObject().subscribeToEvents(this.getStub(), this.name);

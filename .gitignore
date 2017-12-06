@@ -31,3 +31,7 @@ build/
 .gradle
 gradlew
 gradlew.bat
+/.nb-gradle/
+
+# Netbeans ignores
+*.form
