@@ -41,7 +41,7 @@ public class TextFrontend implements RemoteLogger {
 		this.logicalClock = new LamportsClock();
 
 		try {
-			PrintStream ps = new PrintStream(new FileOutputStream(new File("test.log")));
+			PrintStream ps = new PrintStream(new FileOutputStream(new File("jelmer.log")));
 			logger = new QueuedLogger(ps);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
