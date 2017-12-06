@@ -7,6 +7,11 @@ import distributed.systems.gridscheduler.model.LogicalClock;
 import distributed.systems.gridscheduler.remote.RemoteClient;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteLogger;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.rmi.ConnectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -34,7 +39,15 @@ public class TextFrontend implements RemoteLogger {
 
 	public TextFrontend(String[] args) {
 		this.logicalClock = new LamportsClock();
-		logger = new QueuedLogger(System.out);
+
+		try {
+			PrintStream ps = new PrintStream(new FileOutputStream(new File("test.log")));
+			logger = new QueuedLogger(ps);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			logger = new QueuedLogger(System.out);
+
+		}
 
 		this.name = args[0];
 
@@ -100,6 +113,8 @@ public class TextFrontend implements RemoteLogger {
 				this.subscribedGridSchedulers.remove(gs);
 			}
 		}
+
+        System.out.println("Jelmer is up");
 	}
 
 
