@@ -60,6 +60,12 @@ for i, count in enumerate(RM_PER_GS):
     print(SUCCESS + "Grid scheduler %s is up" % gs_name)
 print("")
 
+print(INFO + "Running glenn's baby")
+fe = java_process('Frontend',  'Glenn', 'localhost', RMI_PORT, names_gs[-1],
+        waitfor="Glenn is up"
+)
+print(SUCCESS + "Glenn is a go")
+
 # Let's run the resource managers
 active_rm = []
 names_rm = []
