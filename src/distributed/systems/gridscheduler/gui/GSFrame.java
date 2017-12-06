@@ -25,7 +25,7 @@ public class GSFrame extends JFrame {
 	private static final long serialVersionUID = 7764398835092386415L;
 	
 	// update at a rate of 10 frames/second 
-	private static final int REFRESH_DELAY_MS = 30;
+	private static final int REFRESH_DELAY_MS = 250;
 
 	// list of status panels, used for automatic updating
 	private ArrayList<StatusPanel> statusPanels;

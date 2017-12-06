@@ -105,6 +105,12 @@ public class GuiHost {
         panels.get(rrmName).repaint();
     }
 
+    public void updateNodes(String rrmName) {
+        rrmCacheMap.get(rrmName).invalidate();
+        panels.get(rrmName).revalidate();
+        panels.get(rrmName).repaint();
+    }
+
     /**
      * Updates a part of the data behind an RMM, specifically a single node and causes the RMM's panel to update.
      * @param rrmName is the name of the RMM whose data needs to be updated
