@@ -27,8 +27,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * spreading this data out over a bunch of separate Queues and HashMaps.
  */
 public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
-
-	public static final int REGISTRY_PORT = 1099;
 	public static final int RM_CAPACITY_CACHE_DURATION = 1000;
 	public static final int GS_CAPACITY_CACHE_DURATION = 1000;
 
@@ -140,7 +138,7 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 			RemoteGridScheduler rgs = this.getStub();
 			Registry registry = LocateRegistry.getRegistry(registryHost, registryPort);
 			registry.rebind(name, rgs);
-			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_REGISTERED_REGISTRY, this.getName(), registryHost, REGISTRY_PORT));
+			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_REGISTERED_REGISTRY, this.getName(), registryHost, registryPort));
 
 
 			// Connect to peer GS, add them all to registeredGridScheduler queue.
