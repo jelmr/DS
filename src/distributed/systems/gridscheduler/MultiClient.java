@@ -72,6 +72,7 @@ public class MultiClient implements RemoteClient {
     @Override
     public void jobDone(Job job) throws RemoteException {
         System.out.printf("Received response for job '%s'\n", job.getId());
+//        System.out.printf("Waiting for: %s\n", String.join(", ", Collections.list(jobCompleted.keys())));
 
         // Logging response
         Event event = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_JOB_DONE, this.getName(), job.getId());
@@ -83,6 +84,8 @@ public class MultiClient implements RemoteClient {
         if (hasOutStandingJobs())
             return;
 
+        System.out.println("Test complete");
+
         // reaching here means we're done for today :)
         try {
             closeClientRMI();
@@ -90,7 +93,6 @@ public class MultiClient implements RemoteClient {
             e.printStackTrace();
         }
 
-        System.out.println("Test complete");
     }
 
     /* ************************************************************************
@@ -164,7 +166,7 @@ public class MultiClient implements RemoteClient {
      * @throws NotBoundException ignore me
      */
     private void closeClientRMI() throws RemoteException, NotBoundException {
-        Event                              exitEvent = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_EXITING, this.getName());
+        Event exitEvent = new Event.TypedEvent(this.logicalClock, EventType.CLIENT_EXITING, this.getName());
 
         if (!RemoteResourceManager.logEvent(resourceManagerList, exitEvent))
             System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
