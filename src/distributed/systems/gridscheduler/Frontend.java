@@ -330,6 +330,8 @@ public class Frontend implements RemoteLogger {
 				this.subscribedGridSchedulers.remove(gs);
 			}
 		}
+
+        System.out.println("Glenn is up");
 	}
 
 
