@@ -15,11 +15,11 @@ import distributed.systems.gridscheduler.model.NodeStatus;
  *
  */
 public class RMStatusPanel extends StatusPanel {
-	public final static int padding = 4;
-	final static int fontHeight = 12;
+	public final static int padding = 6;
+	final static int fontHeight = 14;
 
 	final static int panelWidth = 300;
-	final static int statusTextHeight = 60;
+	final static int statusTextHeight = 70;
 
 	final static int nodeSize = 8;
 	final static int nodePadding = 2;
@@ -81,6 +81,10 @@ public class RMStatusPanel extends StatusPanel {
 
         g.drawString("Cluster name ", x, y);
         g.drawString("" + rrmData.getName(), x + colWidth, y);
+        y += fontHeight;
+
+        g.drawString("Queued jobs ", x, y);
+        g.drawString("" + rrmData.getQueuedJobs() + " / " + rrmData.getQueueSize(), x + colWidth, y);
         y += fontHeight;
 
         g.drawString("Nr. of nodes ", x, y);

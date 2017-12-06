@@ -22,6 +22,8 @@ public class RRMCache implements Cache {
     private Cached<Integer> amountOfIdleNodes;
     private Cached<Integer> amountOfBusyNodes;
     private Cached<Integer> amountOfDownNodes;
+    private Cached<Integer> queuedJobs;
+    private Cached<Integer> queueSize;
 
     private Cached<List<NodeData>> allNodeData;
 
@@ -35,6 +37,8 @@ public class RRMCache implements Cache {
         amountOfIdleNodes = new Cached<>();
         amountOfBusyNodes = new Cached<>();
         amountOfDownNodes = new Cached<>();
+        queuedJobs = new Cached<>();
+        queueSize = new Cached<>();
 
         allNodeData = new Cached<>();
 
@@ -49,6 +53,8 @@ public class RRMCache implements Cache {
         amountOfIdleNodes.invalidate();
         amountOfBusyNodes.invalidate();
         amountOfDownNodes.invalidate();
+        queuedJobs.invalidate();
+        queueSize.invalidate();
 
         allNodeData.invalidate();
     }
@@ -57,6 +63,8 @@ public class RRMCache implements Cache {
     public void forceRefresh() {
         try {
             refreshAllNodes();
+            queueSize.updateValue(source.getQueueSize());
+            queuedJobs.updateValue(source.getQueuedJobs());
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -131,6 +139,28 @@ public class RRMCache implements Cache {
             }
         }
         return amountOfDownNodes.getValue();
+    }
+
+    public int getQueueSize() {
+        if (queueSize.isStale()) {
+            try {
+                queueSize.updateValue(source.getQueueSize());
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+        return queueSize.getValue();
+    }
+
+    public int getQueuedJobs() {
+        if (queuedJobs.isStale()) {
+            try {
+                queuedJobs.updateValue(source.getQueuedJobs());
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+        return queuedJobs.getValue();
     }
 
     public NodeStatus getStatusOf(int index) {

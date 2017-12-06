@@ -274,6 +274,16 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 	}
 
 	@Override
+	public Integer getQueueSize() throws RemoteException {
+		return jobQueueSize;
+	}
+
+	@Override
+    public Integer getQueuedJobs() throws RemoteException {
+        return jobQueue.size();
+    }
+
+    @Override
 	public boolean logEvent(Event e) throws RemoteException {
 		this.logicalClock.tickReceiveEvent(e.getTimestamp());
 		this.logger.log(e);
