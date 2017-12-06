@@ -97,18 +97,17 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 				try {
 					rgs = (RemoteGridScheduler) register.lookup(gsName);
 				} catch (NotBoundException ignored){
+					System.out.printf("Couldn't connect to %s\n", gsName);
 					continue;
 				};
 
 				// If we found a reachable GridScheduler
 				Named<RemoteGridScheduler> namedRgs = new Named<>(gsName, rgs);
 				RemoteResourceManagerImpl rm = new RemoteResourceManagerImpl(name, numberOfNodes, namedRgs);
-
 				RemoteResourceManager rrm = rm.getStub();
-				Registry registry = LocateRegistry.getRegistry();
 
 				rm.logEvent(new Event.TypedEvent(rm.logicalClock, EventType.RM_REGISTERED_REGISTRY, rm.getName(), registryHost, registryPort));
-				registry.rebind(name, rrm);
+				register.rebind(name, rrm);
 
 				// TODO :Stop termination
 
