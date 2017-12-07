@@ -251,7 +251,7 @@ public class Frontend implements RemoteLogger {
 
 			subscribedGridSchedulers.add(new Named<>(rgsName, rgs));
 			rgs.subscribeToEvents(this.stub, this.name);
-			
+
 			neoGuiHost.addRGS(rgsName, frame, rgsCache);
 
 		} catch (RemoteException | NotBoundException | ClassCastException e) {
