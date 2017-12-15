@@ -64,11 +64,11 @@ We could select 0 for AuverGrid and 1 for DAS2, in case no number is given the d
 The output is then written to input.tim
 
 
-To run the automated tests we use the two differnt launch_tim.py scripts.
-one for local running and one for running on the DAS
+To run the automated tests we use the launch_tim.py script.
+For running local running and one for running on the DAS
 Which is written in python3.
-To run it you can use ./launch_tim.py (or python3 launch_tim.py)
+To run it you can use ./launch_tim.py -h (or python3 launch_tim.py -h)
 refer to the scripts help section for it's arguments.
 
-To run on the DAS we use the command
+For example, to run on the DAS we use the command:
 prun -v -np 1 launch_tim.py -g $i:$i:$i:$i:$i -j 2000 > "cluster$i.log" &
