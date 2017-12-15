@@ -1,5 +1,7 @@
 package distributed.systems.gridscheduler;
 
+import distributed.systems.gridscheduler.remote.RemoteRegistry;
+
 import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
@@ -20,12 +22,18 @@ public class RegistryManager {
     }
 
     void bind(String name, Remote r) throws RemoteException {
+        System.out.println(getUrl(name));
+
         try {
-            Naming.rebind(getUrl(name), r);
+            RemoteRegistry registry = (RemoteRegistry) Naming.lookup(getUrl("registry"));
+            registry.proxyBind(name, r);
+//            Naming.rebind(getUrl(name), r);
         } catch (MalformedURLException e) {
             System.out.println("url was borked: " + getUrl(name));
             e.printStackTrace();
             System.exit(-1);
+        } catch (NotBoundException e) {
+            System.out.println("Not bound :(");
         }
     }
 
