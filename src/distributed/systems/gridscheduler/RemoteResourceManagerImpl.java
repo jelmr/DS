@@ -89,7 +89,14 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 		String name = args[0];
 		int numberOfNodes = Integer.parseInt((args[1]));
-		RegistryManager registryManager = new RegistryManager(args[2], Integer.parseInt(args[3]));
+		RegistryManager registryManager = null;
+		try {
+			registryManager = new RegistryManager(args[2], Integer.parseInt(args[3]));
+		} catch (RemoteException e) {
+			System.out.println("Couldn't reach the registry");
+			return;
+		}
+
 //		String registryHost = args[2];
 //		int registryPort = Integer.parseInt(args[3]);
 

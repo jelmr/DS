@@ -131,7 +131,13 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	private void start(String[] args) throws RemoteException {
 		String name = this.getName();
 
-		RegistryManager registryManager = new RegistryManager(args[1], Integer.parseInt(args[2]));
+		RegistryManager registryManager;
+		try {
+			registryManager = new RegistryManager(args[1], Integer.parseInt(args[2]));
+		} catch (RemoteException e) {
+			System.out.println("Registry couldn't be reached");
+			return;
+		}
 
 //		String registryHost = args[1];
 //		int registryPort = Integer.parseInt(args[2]);

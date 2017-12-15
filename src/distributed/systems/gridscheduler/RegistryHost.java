@@ -2,6 +2,7 @@ package distributed.systems.gridscheduler;
 
 import distributed.systems.gridscheduler.remote.RemoteRegistry;
 
+import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -25,6 +26,13 @@ public class RegistryHost implements RemoteRegistry {
 
 		// Bind service to it
 		host.rebind("registry", UnicastRemoteObject.exportObject(this, 0));
+
+		try {
+			LocateRegistry.getRegistry(port).lookup("registry");
+			System.out.println("RegistryHost object connected correctly");
+		} catch (NotBoundException e) {
+			System.out.println("Registry binding went wrong");
+		}
 	}
 
 	@Override
@@ -39,6 +47,16 @@ public class RegistryHost implements RemoteRegistry {
 		}
 	}
 
+	@Override
+	public void proxyUnbind(String name) throws RemoteException {
+		try {
+			host.unbind(name);
+		} catch (NotBoundException e) {
+			System.out.println("Unbind without bind: " + name);
+			e.printStackTrace();
+		}
+	}
+
 
 	public static void main(String[] args) {
 		if (args.length < 1) {
@@ -48,9 +66,10 @@ public class RegistryHost implements RemoteRegistry {
 
 		int port = Integer.parseInt(args[0]);
 		try {
+			System.out.println("Binding to the registry");
 			new RegistryHost(port);
-		} catch (RemoteException e) {
 			System.out.println("Just finished starting our own proxy bound registry");
+		} catch (RemoteException e) {
 			e.printStackTrace();
 		}
 	}
