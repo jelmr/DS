@@ -44,3 +44,31 @@ For example, starting up the system could look like this:
     $ gradle client -Pargv="['client3', '5', '5000', '14000', '127.0.0.1','1099', 'rm3']"
     $ gradle client -Pargv="['client4', '5', '5000', '14000', '127.0.0.1','1099', 'rm4']"
     $ gradle client -Pargv="['client5', '5', '5000', '14000', '127.0.0.1','1099', 'rm4']"
+
+To convert a Grid Workload Format file to Time Inclined Model format,
+the "test_dataset.py" script can be used.
+./test_dataset.py (or python test_dataset.py making sure you use python2.7)
+To convert a dataset makesure it is in the correct directory structure:
+datasets/[DATASET_NAME]/anon_jobs.gwf
+then after running the script select the dataset you want to convert by entering it's index as a number.
+e.g.:
+
+Starting test conversion
+The available datasets are:
+0: AuverGrid 
+1: DAS2 
+
+Select a dataset index as input[0]: 
+
+We could select 0 for AuverGrid and 1 for DAS2, in case no number is given the default is dataset 0.
+The output is then written to input.tim
+
+
+To run the automated tests we use the two differnt launch_tim.py scripts.
+one for local running and one for running on the DAS
+Which is written in python3.
+To run it you can use ./launch_tim.py (or python3 launch_tim.py)
+refer to the scripts help section for it's arguments.
+
+To run on the DAS we use the command
+prun -v -np 1 launch_tim.py -g $i:$i:$i:$i:$i -j 2000 > "cluster$i.log" &

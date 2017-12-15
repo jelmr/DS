@@ -112,50 +112,10 @@ def file_format(commands, lists, rms):
   f.close()
 # .tim
 
-def run(schedulers, rms):
-  # Run
-  # - Run the registry
-  print "Start the registry"
-  test = pexpect.spawn("./gradlew registry -Pargv=\"['%d']\"" % PORT)
-  test.expect("75% EXECUTING")
-
-
-  # - Run the grid scheduler
-  print "Start the grid schedulers"
-  print "  starting gs0"
-  test = pexpect.spawn("./gradlew gs -Pargv=\"['gs0', '127.0.0.1', '%s']\"" % PORT)
-  test.expect("75% EXECUTING")
-  tests = []
-  for i in range(1,len(schedulers)):
-    gs = schedulers[i]
-    print "  starting %s" % gs
-    tests.append(pexpect.spawn("./gradlew gs -Pargv=\"['%s', '127.0.0.1', '%s', 'gs0']\"" % (gs, PORT)))
-  for test in tests:
-    test.expect("75% EXECUTING")
-
-  # - Run the resource managers
-  print "Start the recourse managers"
-  #tests = []
-  #for r in rms:
-  #  r = r.split(", ")
-  #  for rm in r:
-  #    print "  starting %s" % rm
-  #    gs = rm[:3]
-  #    tests.append(pexpect.spawn("./gradlew rm -Pargv=\"['%s', '%s', '127.0.0.1', '%s', '%s']\"" % (rm, NODES, PORT, gs)))
-  #for test in tests:
-  #  test.expect("75% EXECUTING")
-
-  # - Run the client
-  print "ready to run client"
-  #gradle client -Pargv="['']"
-  system("./gradlew rm -Pargv=\"['gs0-rm0', '50', '127.0.0.1', '%s', 'gs0']\"" % PORT)
-
-
-
-print "Starting test run"
+print "Starting test conversion"
 input_text = select_input()
 commands = parse_input(input_text)
 lists = format_commands(commands)
 rms = create_rms(lists[1])
 file_format(commands, lists, rms)
-run(lists[1], rms)
+print "Converted dataset to tim format"
