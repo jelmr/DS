@@ -119,3 +119,4 @@ lists = format_commands(commands)
 rms = create_rms(lists[1])
 file_format(commands, lists, rms)
 print "Converted dataset to tim format"
+#run(lists[1], rms)
