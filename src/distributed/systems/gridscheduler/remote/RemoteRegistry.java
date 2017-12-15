@@ -4,4 +4,5 @@ import java.rmi.RemoteException;
 
 public interface RemoteRegistry extends Remote {
     void proxyBind(String name, Remote r) throws RemoteException;
+    void proxyUnbind(String name) throws RemoteException;
 }
