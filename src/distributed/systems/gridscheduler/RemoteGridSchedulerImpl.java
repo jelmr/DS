@@ -4,7 +4,10 @@ import distributed.systems.gridscheduler.model.*;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteLogger;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
+
+import java.net.MalformedURLException;
 import java.rmi.ConnectException;
+import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -136,8 +139,10 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 		try {
 			// Register self in registry
 			RemoteGridScheduler rgs = this.getStub();
-			Registry registry = LocateRegistry.getRegistry(registryHost, registryPort);
-			registry.rebind(name, rgs);
+
+			Naming.rebind("//" + registryHost + ":" + registryPort + "/" + this.getName(), rgs);
+//			Registry registry = LocateRegistry.getRegistry(registryHost, registryPort);
+//			registry.rebind(name, rgs);
 			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_REGISTERED_REGISTRY, this.getName(), registryHost, registryPort));
 
 
@@ -172,7 +177,7 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 					try {
 						registeredGridScheduler.getObject().registerGridScheduler(this.getStub(), this.getName());
 					} catch (java.rmi.ConnectException e) {
-						// This host is apparantly dead, remove it
+						// This host is apparently dead, remove it
 						this.registeredGridSchedulers.remove(registeredGridScheduler);
 					}
 				}
@@ -183,6 +188,9 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 		} catch (RemoteException e) {
 			e.printStackTrace();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+			System.exit(1);
 		}
 	}
 
