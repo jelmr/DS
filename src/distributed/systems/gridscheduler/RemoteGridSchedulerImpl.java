@@ -131,19 +131,22 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 	private void start(String[] args) throws RemoteException {
 		String name = this.getName();
 
+		RegistryManager registryManager = new RegistryManager(args[1], Integer.parseInt(args[2]));
 
-		String registryHost = args[1];
-		int registryPort = Integer.parseInt(args[2]);
+//		String registryHost = args[1];
+//		int registryPort = Integer.parseInt(args[2]);
 
 
 		try {
 			// Register self in registry
 			RemoteGridScheduler rgs = this.getStub();
+			registryManager.bind(name, rgs);
 
-			Naming.rebind("//" + registryHost + ":" + registryPort + "/" + this.getName(), rgs);
+//			Naming.rebind("//" + registryHost + ":" + registryPort + "/" + this.getName(), rgs);
 //			Registry registry = LocateRegistry.getRegistry(registryHost, registryPort);
 //			registry.rebind(name, rgs);
-			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_REGISTERED_REGISTRY, this.getName(), registryHost, registryPort));
+			this.logEvent(new Event.TypedEvent(this.logicalClock, EventType.GS_REGISTERED_REGISTRY, this.getName(),
+					registryManager.getRegistryHost(), registryManager.getRegistryPort()));
 
 
 			// Connect to peer GS, add them all to registeredGridScheduler queue.
@@ -188,9 +191,6 @@ public class RemoteGridSchedulerImpl implements RemoteGridScheduler , Runnable{
 
 		} catch (RemoteException e) {
 			e.printStackTrace();
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-			System.exit(1);
 		}
 	}
 

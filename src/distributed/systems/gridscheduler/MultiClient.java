@@ -8,8 +8,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,33 +29,37 @@ import java.util.regex.Pattern;
  * @author Arthur de Fluiter
  *         Date: 5/12/2017
  */
-public class MultiClient implements RemoteClient {
+public class MultiClient extends UnicastRemoteObject implements RemoteClient {
     private final static String NAME = "Tim";
     private Map<String, RemoteResourceManager> resourceManagers;
     private List<Named<RemoteResourceManager>> resourceManagerList; /* redundancy necessary due to interface logging */
     private LogicalClock                       logicalClock;
     private ConcurrentHashMap<String, Boolean> jobCompleted;
 
-    private          Registry     registry;
+    private          RegistryManager     registryManager;
     private          RemoteClient remoteClientStub;
     private volatile boolean      stillScheduling;
     private final static long PERIOD_BETWEEN_JOBCREATION = 100;
 
 
-    public MultiClient(String registryHost, int registryPort) {
+    public MultiClient(String registryHost, int registryPort) throws RemoteException {
+        super();
+
         this.resourceManagers = new ConcurrentHashMap<>();
         this.resourceManagerList = new ArrayList<>(); /* we don't care about concurrency */
         this.jobCompleted = new ConcurrentHashMap<>();
 
         this.logicalClock = new LamportsClock();
 
-        try {
-            registry = LocateRegistry.getRegistry(registryHost, registryPort);
-            remoteClientStub = (RemoteClient) UnicastRemoteObject.exportObject(this, 0);
-            registry.rebind(NAME, remoteClientStub);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
+//        try {
+            registryManager = new RegistryManager(registryHost, registryPort);
+            registryManager.bind(NAME, UnicastRemoteObject.exportObject(this, 0));
+//            registry = LocateRegistry.getRegistry(registryHost, registryPort);
+//            remoteClientStub = (RemoteClient) UnicastRemoteObject.exportObject(this, 0);
+//            registry.rebind(NAME, remoteClientStub);
+//        } catch (RemoteException e) {
+//            e.printStackTrace();
+//        }
     }
 
     /* ************************************************************************
@@ -111,7 +113,7 @@ public class MultiClient implements RemoteClient {
             return resourceManagers.get(name);
 
         try {
-            RemoteResourceManager rrm = (RemoteResourceManager) registry.lookup(name);
+            RemoteResourceManager rrm = (RemoteResourceManager) registryManager.lookup(name);
             resourceManagers.put(name, rrm);
             resourceManagerList.add(new Named<>(name, rrm));
             return rrm;
@@ -172,16 +174,17 @@ public class MultiClient implements RemoteClient {
         if (!RemoteResourceManager.logEvent(resourceManagerList, exitEvent))
             System.out.printf("Couldn't find any ResourceManagers to log event to...\n");
 
-        UnicastRemoteObject.unexportObject(this, true);
+//        this.unexportObject()
+//        UnicastRemoteObject.unexportObject(this, true);
+//
+//        for (Named<RemoteResourceManager> resourceManager : resourceManagerList)
+//            UnicastRemoteObject.unexportObject(resourceManager.getObject(), true);
 
-        for (Named<RemoteResourceManager> resourceManager : resourceManagerList)
-            UnicastRemoteObject.unexportObject(resourceManager.getObject(), true);
-
-        UnicastRemoteObject.unexportObject(this.registry, true);
-        UnicastRemoteObject.unexportObject(this.remoteClientStub, true);
-
-        this.registry.unbind(NAME);
-        this.registry = null;
+        registryManager.unbind(NAME);
+//        UnicastRemoteObject.unexportObject(this.remoteClientStub, true);
+//
+//        this.registry.unbind(NAME);
+//        this.registry = null;
         this.remoteClientStub = null;
         this.resourceManagers.clear();
         this.resourceManagers = null;

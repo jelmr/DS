@@ -6,6 +6,8 @@ import distributed.systems.gridscheduler.remote.RemoteClient;
 import distributed.systems.gridscheduler.remote.RemoteGridScheduler;
 import distributed.systems.gridscheduler.remote.RemoteResourceManager;
 import java.io.Serializable;
+import java.net.MalformedURLException;
+import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -87,18 +89,19 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 
 		String name = args[0];
 		int numberOfNodes = Integer.parseInt((args[1]));
-		String registryHost = args[2];
-		int registryPort = Integer.parseInt(args[3]);
+		RegistryManager registryManager = new RegistryManager(args[2], Integer.parseInt(args[3]));
+//		String registryHost = args[2];
+//		int registryPort = Integer.parseInt(args[3]);
 
 		RemoteGridScheduler rgs = null;
 		try {
-
-			Registry register = LocateRegistry.getRegistry(registryHost, registryPort);
+//			Registry register = LocateRegistry.getRegistry(registryHost, registryPort);
 
 			for (int i=4; i<args.length; i++) {
 				String gsName = args[i];
 				try {
-					rgs = (RemoteGridScheduler) register.lookup(gsName);
+					rgs = (RemoteGridScheduler) registryManager.lookup(gsName);
+//					rgs = (RemoteGridScheduler) register.lookup(gsName);
 				} catch (NotBoundException ignored){
 					System.out.printf("Couldn't connect to %s\n", gsName);
 					continue;
@@ -110,8 +113,12 @@ public class RemoteResourceManagerImpl implements RemoteResourceManager, Seriali
 				RemoteResourceManager rrm = rm.getStub();
 
 				rm.logicalClock.tickSendEvent();
-				rm.logEvent(new Event.TypedEvent(rm.logicalClock, EventType.RM_REGISTERED_REGISTRY, rm.getName(), registryHost, registryPort));
-				register.rebind(name, rrm);
+				rm.logEvent(new Event.TypedEvent(rm.logicalClock, EventType.RM_REGISTERED_REGISTRY, rm.getName(),
+						registryManager.getRegistryHost(),registryManager.getRegistryPort()));
+				registryManager.bind(name, rrm);
+
+//				Naming.rebind("//" + registryHost + ":" + registryPort + "/" + name, rrm);
+//				register.rebind(name, rrm);
 
 				// TODO :Stop termination
 
